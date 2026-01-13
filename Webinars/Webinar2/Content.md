@@ -191,7 +191,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: <docker-hub-account>/myapp-webapi:1.0
+        image: your-docker-hub-account/myapp-webapi:1.0
         ports:
         - containerPort: 8080
           name: http
@@ -589,7 +589,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: <docker-hub-account>/myapp-webapi:1.0
+        image: your-docker-hub-account/myapp-webapi:1.0
         ports:
         - containerPort: 8080
           name: http
