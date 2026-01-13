@@ -234,20 +234,60 @@ Esperado: versões instaladas exibidas sem erros.
 
 ---
 
-## 9) Subir o cluster Minikube (usando Docker Desktop como driver)
+## 9) Iniciar o cluster Minikube (usando Docker Desktop como driver)
+
+**Importante:** Sempre que for trabalhar com Kubernetes, você precisa **iniciar o cluster** primeiro.
+
+### 9.1 Verificar se o Docker Desktop está rodando
+
+Antes de tudo, confirme que o Docker Desktop está aberto e ativo:
+
+```bash
+docker ps
+```
+
+Se esse comando funcionar, você está pronto.
+
+### 9.2 Iniciar o Minikube
+
+### 9.2 Iniciar o Minikube
 
 ```bash
 minikube start --driver=docker
 ```
 
-Checar status e node:
+Esse comando:
+- Cria um cluster Kubernetes local
+- Usa o Docker como driver (containers ao invés de VMs)
+- Pode demorar alguns minutos na primeira vez
+
+Saída esperada: mensagens de progresso e `Done! kubectl is now configured to use "minikube" cluster...`
+
+### 9.3 Verificar status do cluster
 
 ```bash
 minikube status
+```
+
+Esperado:
+```
+minikube
+type: Control Plane
+host: Running
+kubelet: Running
+apiserver: Running
+kubeconfig: Configured
+```
+
+Verificar nodes:
+
+```bash
 kubectl get nodes
 ```
 
 Esperado: 1 node com status `Ready`.
+
+### 9.4 Confirmar contexto do kubectl
 
 Garantir que você está no contexto correto:
 
@@ -534,35 +574,7 @@ kubectl get all
 
 Esperado: apenas o service `kubernetes` (service padrão do cluster).
 
-### 14.4 (Opcional) Parar o cluster Minikube
-
-Se quiser parar o cluster completamente:
-
-```bash
-minikube stop
-```
-
-Para iniciar novamente depois:
-
-```bash
-minikube start
-```
-
-### 14.5 (Opcional) Deletar o cluster Minikube completamente
-
-Se quiser remover o cluster e começar do zero:
-
-```bash
-minikube delete
-```
-
-Para criar um novo cluster depois, execute novamente:
-
-```bash
-minikube start --driver=docker
-```
-
-### 14.6 Deletar todos os recursos de uma vez
+### 14.4 Deletar todos os recursos de uma vez
 
 Caso tenha criado vários recursos e queira deletar tudo relacionado ao app:
 
@@ -571,3 +583,25 @@ kubectl delete all -l app=myapp-webapi
 ```
 
 Esse comando usa o label selector para deletar todos os recursos (pods, services, deployments, replicasets) que tenham a label `app=myapp-webapi`.
+
+---
+
+## 15) Desligar o cluster Minikube
+
+Quando terminar de trabalhar, é uma boa prática **parar o cluster** para economizar recursos do seu computador.
+
+### 15.1 Parar o cluster (recomendado)
+
+```bash
+minikube stop
+```
+
+Isso para o cluster mas mantém todos os recursos. Quando você iniciar novamente com `minikube start`, tudo estará lá.
+
+Verificar status:
+
+```bash
+minikube status
+```
+
+Esperado: `host: Stopped`
