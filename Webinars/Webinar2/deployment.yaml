@@ -30,7 +30,7 @@ spec:
               protocol: TCP
           env:
             - name: ASPNETCORE_ENVIRONMENT
-              value: "Development"
+              value: "Production"
           resources:
             requests:
               memory: "128Mi"
