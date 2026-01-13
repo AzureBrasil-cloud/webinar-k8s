@@ -4,7 +4,6 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 app.MapOpenApi();
-app.UseHttpsRedirection();
 
 // Static products list
 var products = new[]
