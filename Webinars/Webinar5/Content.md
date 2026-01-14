@@ -545,16 +545,32 @@ kubectl apply -f ingress-host.yaml
 kubectl get ingress -n webinar5 -o wide
 ```
 
-### 6.2) Configurar /etc/hosts
+### 6.2) Configurar acesso para testes
 
-Para testar localmente, precisamos mapear os hostnames para o IP do Minikube:
+Para testar o roteamento por host, precisamos mapear os hostnames (`myapp.local`, `api.myapp.local`) para um endereço IP. Existem **duas abordagens** dependendo do seu ambiente:
+
+---
+
+#### **Opção 1: Usar IP do Minikube diretamente (Linux/Windows ou Hypervisor VM)**
+
+✅ **Recomendado** - Porta fixa, mais previsível para demos
+
+**Passo 1:** Obter o IP do Minikube
+
+```bash
+minikube ip
+```
+
+Exemplo de saída: `192.168.49.2`
+
+**Passo 2:** Adicionar ao `/etc/hosts`
 
 ```bash
 MINIKUBE_IP=$(minikube ip)
-echo "${MINIKUBE_IP} myapp.local api.myapp.local"
+echo "${MINIKUBE_IP} myapp.local api.myapp.local" | sudo tee -a /etc/hosts
 ```
 
-**Editar /etc/hosts** (requer sudo):
+Ou editar manualmente:
 
 ```bash
 sudo nano /etc/hosts
@@ -568,7 +584,117 @@ Adicionar linha:
 
 Salvar (`Ctrl+O`, `Enter`, `Ctrl+X`).
 
+**Passo 3:** Testar (porta 80, padrão HTTP)
+
+```bash
+# WebApp
+curl http://myapp.local/
+
+# API
+curl http://api.myapp.local/health
+curl http://api.myapp.local/products
+```
+
+**Navegador:**
+- http://myapp.local
+- http://api.myapp.local/products
+
+✅ **Vantagens:**
+- Porta fixa (80)
+- URLs limpas sem porta
+- Mais profissional para demos
+- Funciona de forma consistente
+
+❌ **Limitação:**
+- No macOS com Docker driver, o IP do Minikube geralmente **não é acessível** do host
+
+---
+
+#### **Opção 2: Usar túnel do Minikube com porta dinâmica (macOS + Docker driver)**
+
+✅ **Necessário** quando o IP do Minikube não está acessível (macOS + Docker)
+
+**Passo 1:** Criar túnel e obter URL com porta
+
+```bash
+minikube service -n ingress-nginx ingress-nginx-controller --url
+```
+
+Exemplo de saída: `http://127.0.0.1:65113`
+
+**Passo 2:** Mapear hostnames para `127.0.0.1` no `/etc/hosts`
+
+```bash
+echo "127.0.0.1 myapp.local api.myapp.local" | sudo tee -a /etc/hosts
+```
+
+Ou editar manualmente:
+
+```bash
+sudo nano /etc/hosts
+```
+
+Adicionar linha:
+
+```
+127.0.0.1 myapp.local api.myapp.local
+```
+
+**Passo 3:** Manter o túnel aberto em um terminal separado
+
+```bash
+# Em um terminal dedicado (mantenha aberto)
+minikube service -n ingress-nginx ingress-nginx-controller
+```
+
+Saída:
+```
+|---------------|--------------------------|-------------|---------------------------|
+|   NAMESPACE   |           NAME           | TARGET PORT |            URL            |
+|---------------|--------------------------|-------------|---------------------------|
+| ingress-nginx | ingress-nginx-controller | http/80     | http://127.0.0.1:65113    |
+|               |                          | https/443   | http://127.0.0.1:65114    |
+|---------------|--------------------------|-------------|---------------------------|
+🏃  Starting tunnel for service ingress-nginx-controller.
+```
+
+**⚠️ Importante:** Deixe este terminal aberto! Se fechar, o túnel para e o acesso não funciona.
+
+**Passo 4:** Testar com a **porta retornada** (use a porta do passo 1)
+
+Se a porta for `65113`:
+
+```bash
+# WebApp
+curl http://myapp.local:65113/
+
+# API
+curl http://api.myapp.local:65113/health
+curl http://api.myapp.local:65113/products
+```
+
+**Navegador:**
+- http://myapp.local:65113/
+- http://api.myapp.local:65113/products
+
+✅ **Vantagens:**
+- Funciona em macOS com Docker driver
+- Não precisa de configuração de rede adicional
+- Túnel seguro via SSH
+
+❌ **Desvantagens:**
+- Porta muda a cada execução (dinâmica: 65113, 52841, etc.)
+- Precisa manter terminal aberto
+- URLs precisam incluir a porta
+- Menos previsível para demos
+
+---
+
 ### 6.3) Testar roteamento por host
+
+Escolha os comandos de acordo com a opção que você configurou acima.
+
+#### Se usou **Opção 1** (IP direto - porta 80):
 
 **Terminal:**
 
@@ -582,25 +708,43 @@ curl http://api.myapp.local/instance
 curl http://api.myapp.local/products
 ```
 
-**📝 Nota para macOS + Docker driver:**
+**Navegador:**
+- http://myapp.local
+- http://api.myapp.local/products
 
-Se você não configurou /etc/hosts ou o IP não está acessível, use o túnel do Ingress Controller com header Host:
+---
+
+#### Se usou **Opção 2** (túnel - porta dinâmica):
+
+**Terminal:**
+
+Substitua `65113` pela porta que o `minikube service --url` retornou:
 
 ```bash
-# Obter URL do Ingress Controller
-INGRESS_URL=$(minikube service -n ingress-nginx ingress-nginx-controller --url)
+# WebApp
+curl http://myapp.local:65113/
 
-# Testar com Host header
-curl -H "Host: myapp.local" $INGRESS_URL/
-curl -H "Host: api.myapp.local" $INGRESS_URL/health
-curl -H "Host: api.myapp.local" $INGRESS_URL/instance
-curl -H "Host: api.myapp.local" $INGRESS_URL/products
+# API
+curl http://api.myapp.local:65113/health
+curl http://api.myapp.local:65113/instance
+curl http://api.myapp.local:65113/products
 ```
 
 **Navegador:**
+- http://myapp.local:65113/
+- http://api.myapp.local:65113/products
 
-- http://myapp.local
-- http://api.myapp.local/products
+**💡 Dica:** Você também pode testar com `curl` usando header `Host` sem configurar `/etc/hosts`:
+
+```bash
+INGRESS_URL=$(minikube service -n ingress-nginx ingress-nginx-controller --url)
+curl -H "Host: myapp.local" $INGRESS_URL/
+curl -H "Host: api.myapp.local" $INGRESS_URL/health
+```
+
+Mas para navegador, é melhor configurar `/etc/hosts` com `127.0.0.1`.
+
+---
 
 🎉 **Roteamento por host funcionando!**
 
@@ -655,38 +799,187 @@ spec:
 **Aplicar:**
 
 ```bash
-kubectl delete ingress myapp-ingress-host -n webinar5
+kubectl delete ingress myapp-ingress-host -n webinar5 2>/dev/null || true
 kubectl apply -f ingress-combined.yaml
 ```
 
-**Testar:**
+**Verificar:**
 
 ```bash
-# WebApp
+kubectl get ingress -n webinar5
+kubectl describe ingress myapp-ingress -n webinar5
+```
+
+---
+
+### 7.1) Configurar acesso para testes
+
+Assim como na seção 6, você tem **duas opções** para configurar o acesso. A diferença é que agora usamos apenas **um hostname** (`myapp.local`) com **paths diferentes** (`/` e `/api`).
+
+---
+
+#### **Opção 1: Usar IP do Minikube diretamente (Linux/Windows ou Hypervisor VM)**
+
+✅ **Recomendado** - Porta fixa (80), URLs limpas, ideal para demos
+
+**Passo 1:** Verificar se já tem `/etc/hosts` configurado da seção 6
+
+```bash
+cat /etc/hosts | grep myapp.local
+```
+
+Se já tiver `myapp.local` apontando para o IP do Minikube, pode pular para os testes.
+
+**Passo 2:** Se não tiver, adicionar agora
+
+```bash
+MINIKUBE_IP=$(minikube ip)
+echo "${MINIKUBE_IP} myapp.local" | sudo tee -a /etc/hosts
+```
+
+**Nota:** Não precisa adicionar `api.myapp.local` desta vez, pois usamos apenas `myapp.local` com paths diferentes.
+
+---
+
+#### **Opção 2: Usar túnel do Minikube com porta dinâmica (macOS + Docker driver)**
+
+✅ **Necessário** quando o IP do Minikube não está acessível
+
+**Passo 1:** Verificar se já tem `/etc/hosts` configurado da seção 6
+
+```bash
+cat /etc/hosts | grep "127.0.0.1 myapp.local"
+```
+
+Se já tiver, pode usar o mesmo túnel.
+
+**Passo 2:** Se não tiver, adicionar agora
+
+```bash
+echo "127.0.0.1 myapp.local" | sudo tee -a /etc/hosts
+```
+
+**Passo 3:** Verificar se o túnel ainda está aberto
+
+Se você fechou o túnel da seção 6, precisa abrir novamente:
+
+```bash
+# Em um terminal dedicado (mantenha aberto)
+minikube service -n ingress-nginx ingress-nginx-controller
+```
+
+Anote a porta retornada (ex: `65113`).
+
+**⚠️ Importante:** Use a **mesma porta** que o túnel está fornecendo.
+
+---
+
+### 7.2) Testar arquitetura combinada
+
+Escolha os comandos de acordo com a opção que você configurou.
+
+#### **Se usou Opção 1** (IP direto - porta 80):
+
+**Terminal:**
+
+```bash
+# WebApp (root path)
 curl http://myapp.local/
 
-# API
+# API (via /api path)
 curl http://myapp.local/api/health
 curl http://myapp.local/api/instance
 curl http://myapp.local/api/products
 ```
 
-**📝 Nota para macOS + Docker driver:**
+**Navegador:**
+- http://myapp.local
+- http://myapp.local/api/products
 
-Se você não configurou /etc/hosts ou prefere usar o túnel automático:
+**O que observar:**
+- ✅ `/` vai para o WebApp
+- ✅ `/api/*` vai para a API
+- ✅ O path `/api` é **removido** antes de chegar no backend (rewrite)
+- ✅ URLs limpas sem porta
+
+---
+
+#### **Se usou Opção 2** (túnel - porta dinâmica):
+
+**Terminal:**
+
+Substitua `65113` pela porta que o túnel retornou:
 
 ```bash
-# Obter URL do Ingress Controller
+# WebApp (root path)
+curl http://myapp.local:65113/
+
+# API (via /api path)
+curl http://myapp.local:65113/api/health
+curl http://myapp.local:65113/api/instance
+curl http://myapp.local:65113/api/products
+```
+
+**Navegador:**
+- http://myapp.local:65113/
+- http://myapp.local:65113/api/products
+
+**O que observar:**
+- ✅ `/` vai para o WebApp
+- ✅ `/api/*` vai para a API
+- ✅ O path `/api` é **removido** antes de chegar no backend (rewrite)
+- ⚠️ Precisa incluir a porta na URL
+
+**💡 Alternativa com curl (sem /etc/hosts):**
+
+Se preferir testar sem configurar `/etc/hosts`, use o header `Host`:
+
+```bash
 INGRESS_URL=$(minikube service -n ingress-nginx ingress-nginx-controller --url)
 
-# Testar com Host header
 curl -H "Host: myapp.local" $INGRESS_URL/
 curl -H "Host: myapp.local" $INGRESS_URL/api/health
 curl -H "Host: myapp.local" $INGRESS_URL/api/instance
 curl -H "Host: myapp.local" $INGRESS_URL/api/products
 ```
 
-🎉 **Arquitetura production-ready!**
+---
+
+### 7.3) Entendendo o roteamento combinado
+
+Esta arquitetura é **production-ready** porque:
+
+1. **Um único domínio** (`myapp.local`) - Mais fácil de gerenciar
+2. **Roteamento por path** - Frontend na raiz, API em `/api`
+3. **Rewrite inteligente** - Remove `/api` antes de enviar ao backend
+4. **Annotations do NGINX** - Configuração avançada com regex
+
+**Fluxo de uma requisição:**
+
+```
+Cliente: http://myapp.local/api/products
+    ↓
+Ingress Controller (NGINX)
+    ↓
+Ingress Rule: host=myapp.local, path=/api(/|$)(.*)
+    ↓
+Regex captura: grupo 1 = "/", grupo 2 = "products"
+    ↓
+Rewrite: /$2 = "/products"
+    ↓
+Service: myapp-webapi-service
+    ↓
+Pod: myapp-webapi (recebe GET /products)
+```
+
+**Por que isso funciona:**
+
+- A API não precisa saber sobre o prefixo `/api`
+- A API continua com seus endpoints originais (`/health`, `/products`)
+- O Ingress faz a tradução automaticamente
+- Fácil de mover para diferentes paths sem alterar o código da API
+
+🎉 **Arquitetura production-ready funcionando!**
 
 ---
 
