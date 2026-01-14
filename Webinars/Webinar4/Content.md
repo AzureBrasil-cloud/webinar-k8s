@@ -744,25 +744,21 @@ Navegar até o diretório do projeto e fazer build:
 ```bash
 cd Webinars/Webinar4/Apps/MyApp.WebApp
 
-# Definir seu usuário do Docker Hub
-export DOCKER_USER=seuusuario
-
 # Build da imagem
-docker build -t $DOCKER_USER/myapp-webapp:1.0 .
+docker build -t <docker-hub-account>/myapp-webapp:1.0 .
 
 # Login no Docker Hub (se ainda não estiver logado)
 docker login
 
 # Push para Docker Hub
-docker push $DOCKER_USER/myapp-webapp:1.0
+docker push <docker-hub-account>/myapp-webapp:1.0
 ```
 
-**Importante:** Troque `seuusuario` pelo seu nome de usuário do Docker Hub!
+**Importante:** Troque `<docker-hub-account>` pelo seu nome de usuário do Docker Hub!
 
 **Exemplo real:**
 
 ```bash
-export DOCKER_USER=tallesvaliatti
 docker build -t tallesvaliatti/myapp-webapp:1.0 .
 docker push tallesvaliatti/myapp-webapp:1.0
 ```
@@ -810,7 +806,7 @@ spec:
     spec:
       containers:
       - name: webapp
-        image: tallesvaliatti/myapp-webapp:1.0
+        image: <docker-hub-account>/myapp-webapp:1.0
         ports:
         - containerPort: 8080
           name: http
