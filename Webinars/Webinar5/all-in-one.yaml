@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: <docker-hub-account>/myapp-webapi:3.0
+        image: <docker-hub-account>/myapp-webapi:4.0
         ports:
         - containerPort: 8080
           name: http
@@ -134,8 +134,6 @@ kind: Ingress
 metadata:
   name: myapp-ingress
   namespace: webinar5
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
@@ -149,8 +147,8 @@ spec:
             name: myapp-webapp-service
             port:
               number: 80
-      - path: /api(/|$)(.*)
-        pathType: ImplementationSpecific
+      - path: /api
+        pathType: Prefix
         backend:
           service:
             name: myapp-webapi-service

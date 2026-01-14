@@ -3,6 +3,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Configure path base for API
+app.UsePathBase("/api");
+
 app.MapOpenApi();
 
 // Instance information (generated at startup)

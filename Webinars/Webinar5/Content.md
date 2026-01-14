@@ -195,9 +195,147 @@ kubectl apply -f namespace.yaml
 
 ---
 
+## 3.1) Preparando a API v4.0 com UsePathBase
+
+Para esta webinar, vamos usar uma **nova versão da API (v4.0)** que inclui uma configuração importante: **`app.UsePathBase("/api")`**.
+
+### O que mudou?
+
+Nas versões anteriores (v3.0), a API respondia diretamente em endpoints como:
+- `/health`
+- `/products`
+- `/instance`
+
+Com **UsePathBase**, a API agora **espera** que as requisições venham com o prefixo `/api`:
+- `/api/health`
+- `/api/products`
+- `/api/instance`
+
+### Por que usar UsePathBase?
+
+**Vantagens:**
+1. ✅ **Consistência**: A aplicação conhece seu próprio path base
+2. ✅ **Portabilidade**: Funciona em qualquer ambiente (local, Docker, Kubernetes)
+3. ✅ **Simplicidade no Ingress**: Não precisa de rewrite complexo com regex
+4. ✅ **Links corretos**: A API gera links corretos automaticamente (ex: OpenAPI)
+5. ✅ **Melhor prática**: A aplicação é responsável pelo seu próprio roteamento
+
+### Código da API v4.0
+
+No arquivo `Apps/MyApp.WebApi/Program.cs`:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOpenApi();
+
+var app = builder.Build();
+
+// Configure path base for API
+app.UsePathBase("/api");
+
+app.MapOpenApi();
+
+// Instance information (generated at startup)
+var instanceId = Guid.NewGuid().ToString("N")[..8];
+var hostname = Environment.MachineName;
+var startupTime = DateTime.UtcNow;
+
+// Static products list
+var products = new[]
+{
+    new Product(1, "Laptop", "High-performance laptop", 1299.99m),
+    new Product(2, "Smartphone", "Latest model smartphone", 899.99m),
+    new Product(3, "Headphones", "Wireless noise-cancelling headphones", 249.99m),
+    new Product(4, "Keyboard", "Mechanical gaming keyboard", 129.99m),
+    new Product(5, "Mouse", "Ergonomic wireless mouse", 59.99m)
+};
+
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
+    .WithName("HealthCheck");
+
+app.MapGet("/products", () => Results.Ok(products))
+    .WithName("GetProducts");
+
+app.MapGet("/products/{id}", (int id) =>
+{
+    var product = products.FirstOrDefault(p => p.Id == id);
+    return product is not null ? Results.Ok(product) : Results.NotFound();
+})
+.WithName("GetProductById");
+
+app.MapGet("/instance", () =>
+{
+    var uptime = DateTime.UtcNow - startupTime;
+    var instance = new InstanceInfo(
+        instanceId,
+        hostname,
+        startupTime,
+        $"{uptime.Hours:D2}:{uptime.Minutes:D2}:{uptime.Seconds:D2}"
+    );
+    return Results.Ok(instance);
+})
+.WithName("GetInstance");
+
+app.Run();
+
+record Product(int Id, string Name, string Description, decimal Price);
+record InstanceInfo(string InstanceId, string Hostname, DateTime StartupTime, string Uptime);
+```
+
+**Observação importante:** A linha `app.UsePathBase("/api");` é o que faz toda a diferença!
+
+### Build e Push da imagem v4.0
+
+Agora você precisa construir e fazer push da nova versão:
+
+```bash
+cd Webinars/Webinar5/Apps/MyApp.WebApi
+
+# Build da imagem v4.0
+docker build -t <docker-hub-account>/myapp-webapi:4.0 .
+
+# Login no Docker Hub (se ainda não fez)
+docker login
+
+# Push para Docker Hub
+docker push <docker-hub-account>/myapp-webapi:4.0
+```
+
+**Exemplo real:**
+
+```bash
+docker build -t tallesvaliatti/myapp-webapi:4.0 .
+docker push tallesvaliatti/myapp-webapi:4.0
+```
+
+### Diferenças no Ingress
+
+**Com v3.0 (SEM UsePathBase):**
+```yaml
+annotations:
+  nginx.ingress.kubernetes.io/rewrite-target: /$2  # Reescreve /api/products -> /products
+paths:
+  - path: /api(/|$)(.*)  # Regex complexa
+```
+
+**Com v4.0 (COM UsePathBase):**
+```yaml
+# Sem annotations de rewrite!
+paths:
+  - path: /api  # Path simples
+    pathType: Prefix
+```
+
+✅ **Mais simples e mais correto!**
+
+---
+
 ## 4) Deployments e Services (ClusterIP apenas!)
 
 Agora vamos usar **apenas ClusterIP** para os Services, pois o Ingress Controller fará o acesso externo.
+
+**Importante:** Os deployments abaixo usam a **versão 4.0** da API que inclui `UsePathBase("/api")`.
 
 ### deployment.yaml (API)
 
@@ -225,7 +363,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: <docker-hub-account>/myapp-webapi:3.0
+        image: <docker-hub-account>/myapp-webapi:4.0
         ports:
         - containerPort: 8080
           name: http
@@ -367,7 +505,6 @@ metadata:
   namespace: webinar5
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
@@ -382,7 +519,7 @@ spec:
                 port:
                   number: 80
           
-          # Backend: /api/<algo> -> /<algo> no service da API
+          # Backend: /api/<algo> -> /api/<algo> no service da API (sem rewrite)
           - path: /api(/|$)(.*)
             pathType: ImplementationSpecific
             backend:
@@ -397,19 +534,24 @@ spec:
 - **ingressClassName**: Define qual controller usar (`nginx`)
 - **annotations**:
   - `use-regex: "true"` = Habilita suporte a expressões regulares nos paths
-  - `rewrite-target: /$2` = Usa o segundo grupo de captura da regex para reescrever o path
+  - **Sem `rewrite-target`** porque a API v4.0 usa `UsePathBase("/api")` e já espera receber o path completo
 - **rules**: Lista de regras de roteamento
 - **http.paths**: Caminhos e backends
 - **path**: URL path com regex
-  - `/(.*)` = Captura qualquer path (grupo 1 e 2)
-  - `/api(/|$)(.*)` = Captura `/api/` ou `/api` seguido de qualquer coisa (grupo 2)
+  - `/(.*)` = Captura qualquer path (para o frontend)
+  - `/api(/|$)(.*)` = Captura `/api` e tudo depois
 - **pathType**: `ImplementationSpecific` = Permite regex (específico do NGINX)
 - **backend.service**: Service de destino e porta
 
-**Como funciona o rewrite:**
+**Como funciona COM UsePathBase:**
 - Requisição: `http://example.com/api/products`
-- Regex match: `/api(/|$)(.*)` captura `/` (grupo 1) e `products` (grupo 2)
-- Rewrite: `/$2` = `/products` (envia para o backend sem o prefixo `/api`)
+- Regex match: `/api(/|$)(.*)` casa com o path
+- Ingress envia: `GET http://myapp-webapi-service/api/products` (path completo!)
+- API recebe: `/api/products`
+- `UsePathBase("/api")` reconhece o base path
+- Endpoint `/products` é executado
+
+✅ **Mais simples que rewrite! A aplicação é responsável pelo seu próprio path.**
 
 **Aplicar:**
 
@@ -764,8 +906,6 @@ kind: Ingress
 metadata:
   name: myapp-ingress
   namespace: webinar5
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
@@ -779,8 +919,8 @@ spec:
             name: myapp-webapp-service
             port:
               number: 80
-      - path: /api(/|$)(.*)
-        pathType: ImplementationSpecific
+      - path: /api
+        pathType: Prefix
         backend:
           service:
             name: myapp-webapi-service
@@ -788,13 +928,29 @@ spec:
               number: 80
 ```
 
-**Entendendo o rewrite avançado:**
+**Entendendo a simplicidade com UsePathBase:**
 
-- **path**: `/api(/|$)(.*)` - regex que captura tudo depois de `/api`
-- **rewrite-target**: `/$2` - usa o segundo grupo de captura (o que vem depois de `/api`)
+Com a **API v4.0** usando `app.UsePathBase("/api")`, o Ingress fica **muito mais simples**:
+
+- **path**: `/api` - Path simples, sem regex!
+- **pathType**: `Prefix` - Casa com tudo que começa com `/api`
+- **Sem annotations de rewrite** - A API já espera receber `/api/*`
 - **Resultado**: 
-  - `/api/products` → backend recebe `/products`
-  - `/api/health` → backend recebe `/health`
+  - Cliente faz: `GET http://myapp.local/api/products`
+  - Ingress envia: `GET http://myapp-webapi-service/api/products`
+  - API recebe: `/api/products` (exatamente como esperado!)
+
+**Comparação com v3.0 (sem UsePathBase):**
+
+| Aspecto | v3.0 (SEM UsePathBase) | v4.0 (COM UsePathBase) |
+|---------|------------------------|------------------------|
+| **Path no Ingress** | `/api(/\|$)(.*)` (regex) | `/api` (simples) |
+| **Annotations** | `rewrite-target: /$2` | Nenhuma! |
+| **Complexidade** | Alta (regex) | Baixa (prefix) |
+| **Manutenção** | Difícil | Fácil |
+| **Responsabilidade** | Ingress transforma path | API conhece seu path |
+
+✅ **UsePathBase é a melhor prática!**
 
 **Aplicar:**
 
@@ -951,35 +1107,69 @@ Esta arquitetura é **production-ready** porque:
 
 1. **Um único domínio** (`myapp.local`) - Mais fácil de gerenciar
 2. **Roteamento por path** - Frontend na raiz, API em `/api`
-3. **Rewrite inteligente** - Remove `/api` antes de enviar ao backend
-4. **Annotations do NGINX** - Configuração avançada com regex
+3. **UsePathBase na aplicação** - A API conhece seu próprio path base
+4. **Ingress simples** - Sem regex, sem rewrite, apenas prefix matching
+5. **Separação de responsabilidades** - Cada componente cuida do seu roteamento
 
-**Fluxo de uma requisição:**
+**Fluxo de uma requisição com UsePathBase:**
 
 ```
 Cliente: http://myapp.local/api/products
     ↓
 Ingress Controller (NGINX)
     ↓
-Ingress Rule: host=myapp.local, path=/api(/|$)(.*)
+Ingress Rule: host=myapp.local, path=/api (Prefix)
     ↓
-Regex captura: grupo 1 = "/", grupo 2 = "products"
+Encaminha para: myapp-webapi-service
     ↓
-Rewrite: /$2 = "/products"
+Service: myapp-webapi-service:80
     ↓
-Service: myapp-webapi-service
+Pod: myapp-webapi (porta 8080)
     ↓
-Pod: myapp-webapi (recebe GET /products)
+API recebe: GET /api/products
+    ↓
+UsePathBase("/api") reconhece o path base
+    ↓
+Endpoint /products é executado
 ```
 
-**Por que isso funciona:**
+**Por que UsePathBase é melhor:**
 
-- A API não precisa saber sobre o prefixo `/api`
-- A API continua com seus endpoints originais (`/health`, `/products`)
-- O Ingress faz a tradução automaticamente
-- Fácil de mover para diferentes paths sem alterar o código da API
+✅ **Aplicação consciente do path**: A API sabe que está em `/api`
+- Gera links corretos (ex: OpenAPI, HATEOAS)
+- Funciona em qualquer ambiente (local, Docker, K8s)
+- Não depende de configuração externa
 
-🎉 **Arquitetura production-ready funcionando!**
+✅ **Ingress mais simples**: Sem regex, sem rewrite
+- Mais fácil de entender
+- Menos propenso a erros
+- Melhor performance (sem regex matching)
+
+✅ **Separação de responsabilidades**:
+- Frontend não sabe que API está em `/api`
+- API é responsável pelo seu próprio path
+- Ingress apenas roteia, não transforma
+
+✅ **Portabilidade**:
+- Funciona localmente: `http://localhost:8080/api/products`
+- Funciona no Docker: `http://container:8080/api/products`
+- Funciona no Kubernetes: `http://service/api/products`
+- Funciona atrás do Ingress: `http://myapp.local/api/products`
+
+**Comparação: Sem UsePathBase vs Com UsePathBase**
+
+| Aspecto | SEM UsePathBase (v3.0) | COM UsePathBase (v4.0) |
+|---------|------------------------|------------------------|
+| **Ingress path** | `/api(/\|$)(.*)` | `/api` |
+| **Ingress annotations** | `rewrite-target: /$2` | Nenhuma |
+| **API recebe** | `/products` | `/api/products` |
+| **Responsabilidade** | Ingress transforma | API conhece seu path |
+| **Complexidade** | Alta (regex) | Baixa (prefix) |
+| **Geração de links** | Quebrado | ✅ Correto |
+| **Portabilidade** | Limitada | ✅ Total |
+| **Melhor prática** | ❌ Não | ✅ Sim |
+
+🎉 **Arquitetura production-ready com UsePathBase!**
 
 ---
 
@@ -1073,10 +1263,13 @@ O NGINX Ingress suporta várias annotations para configurações avançadas:
 
 ### Rewrite e Redirect
 
+**⚠️ Nota importante:** Com `UsePathBase` na aplicação (API v4.0), você **não precisa** de `rewrite-target`. 
+A aplicação já conhece seu path base!
+
 ```yaml
 annotations:
-  # Rewrite do path
-  nginx.ingress.kubernetes.io/rewrite-target: /$2
+  # Rewrite do path (NÃO necessário com UsePathBase!)
+  # nginx.ingress.kubernetes.io/rewrite-target: /$2
   
   # Redirect permanente
   nginx.ingress.kubernetes.io/permanent-redirect: https://novo-site.com
@@ -1170,7 +1363,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: <docker-hub-account>/myapp-webapi:3.0
+        image: <docker-hub-account>/myapp-webapi:4.0
         ports:
         - containerPort: 8080
           name: http
@@ -1268,14 +1461,12 @@ spec:
     targetPort: 8080
 
 ---
-# Ingress with host-based routing and path rewrite
+# Ingress with host-based routing (simple, no rewrite needed with UsePathBase)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: myapp-ingress
   namespace: webinar5
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
@@ -1289,8 +1480,8 @@ spec:
             name: myapp-webapp-service
             port:
               number: 80
-      - path: /api(/|$)(.*)
-        pathType: ImplementationSpecific
+      - path: /api
+        pathType: Prefix
         backend:
           service:
             name: myapp-webapi-service
@@ -1302,6 +1493,7 @@ spec:
 
 ```bash
 # ANTES: trocar '<docker-hub-account>' pelo seu usuário do Docker Hub
+# IMPORTANTE: Usar a versão 4.0 da API que tem UsePathBase("/api")
 
 # Habilitar Ingress
 minikube addons enable ingress
@@ -1648,10 +1840,10 @@ cd Webinars/Webinar4/Apps/MyApp.WebApi
 docker login
 
 # Build da imagem v3.0
-docker build -t tallesvaliatti/myapp-webapi:3.0 .
+docker build -t tallesvaliatti/myapp-webapi:4.0 .
 
 # Push para Docker Hub
-docker push tallesvaliatti/myapp-webapi:3.0
+docker push tallesvaliatti/myapp-webapi:4.0
 ```
 
 **O que mudou na v3.0:**
@@ -1721,7 +1913,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: <docker-hub-account>/myapp-webapi:3.0
+        image: <docker-hub-account>/myapp-webapi:4.0
         ports:
         - containerPort: 8080
           name: http
@@ -2449,7 +2641,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: tallesvaliatti/myapp-webapi:3.0
+        image: tallesvaliatti/myapp-webapi:4.0
         ports:
         - containerPort: 8080
           name: http
