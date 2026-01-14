@@ -1,19 +1,18 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: myapp-webapp-service
+  name: myapp-webapi-service
   namespace: webinar5
   labels:
-    app: myapp-webapp
+    app: myapp-webapi
 spec:
-  type: ClusterIP  # Changed from NodePort - Ingress will handle external access
+  type: ClusterIP  # Internal only - Ingress handles external access
   selector:
-    app: myapp-webapp
+    app: myapp-webapi
   ports:
   - name: http
     protocol: TCP
     port: 80
     targetPort: 8080
-
 
 

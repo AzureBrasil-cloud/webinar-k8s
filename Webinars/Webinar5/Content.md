@@ -297,7 +297,7 @@ spec:
             cpu: "50m"
 ```
 
-### service-web-nodeport.yaml → Mudou para ClusterIP!
+### service-webapp-clusterip.yaml
 
 ```yaml
 apiVersion: v1
@@ -308,7 +308,7 @@ metadata:
   labels:
     app: myapp-webapp
 spec:
-  type: ClusterIP  # Mudou! Antes era NodePort
+  type: ClusterIP  # Internal only - Ingress handles external access
   selector:
     app: myapp-webapp
   ports:
@@ -322,9 +322,9 @@ spec:
 
 ```bash
 kubectl apply -f deployment.yaml
-kubectl apply -f service-clusterip.yaml
+kubectl apply -f service-webapi-clusterip.yaml
 kubectl apply -f deployment-webapp.yaml
-kubectl apply -f service-web-nodeport.yaml
+kubectl apply -f service-webapp-clusterip.yaml
 ```
 
 **Verificar:**
@@ -1175,11 +1175,6 @@ kubectl get ingress -n webinar5
 ---
 
 🎉 **Parabéns!** Você dominou Ingress no Kubernetes!
-- Recebe um **novo IP**
-- O nome do pod pode mudar (se for de um Deployment)
-- Como outros pods encontram esse pod?
-
-**Solução:** Services!
 
 ### O que é um Service?
 
