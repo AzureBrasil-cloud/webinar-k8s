@@ -737,7 +737,7 @@ curl http://api.myapp.local/products
 
 **Navegador:**
 - http://myapp.local
-- http://api.myapp.local/products
+- http://api.myapp.local/api/products
 
 ✅ **Vantagens:**
 - Porta fixa (80)
@@ -809,13 +809,13 @@ Se a porta for `65113`:
 curl http://myapp.local:65113/
 
 # API
-curl http://api.myapp.local:65113/health
-curl http://api.myapp.local:65113/products
+curl http://api.myapp.local:65113/api/health
+curl http://api.myapp.local:65113/api/products
 ```
 
 **Navegador:**
 - http://myapp.local:65113/
-- http://api.myapp.local:65113/products
+- http://api.myapp.local:65113/api/products
 
 ✅ **Vantagens:**
 - Funciona em macOS com Docker driver
@@ -843,9 +843,9 @@ Escolha os comandos de acordo com a opção que você configurou acima.
 curl http://myapp.local/
 
 # API
-curl http://api.myapp.local/health
-curl http://api.myapp.local/instance
-curl http://api.myapp.local/products
+curl http://api.myapp.local/api/health
+curl http://api.myapp.local/api/instance
+curl http://api.myapp.local/api/products
 ```
 
 **Navegador:**
@@ -865,9 +865,9 @@ Substitua `65113` pela porta que o túnel retornou:
 curl http://myapp.local:65113/
 
 # API
-curl http://api.myapp.local:65113/health
-curl http://api.myapp.local:65113/instance
-curl http://api.myapp.local:65113/products
+curl http://api.myapp.local:65113/api/health
+curl http://api.myapp.local:65113/api/instance
+curl http://api.myapp.local:65113/api/products
 ```
 
 **Navegador:**
