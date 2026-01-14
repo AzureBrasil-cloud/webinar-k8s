@@ -221,7 +221,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: tallesvaliatti/myapp-webapi:3.0
+        image: <docker-hub-account>/myapp-webapi:3.0
         ports:
         - containerPort: 8080
           name: http
@@ -249,7 +249,7 @@ spec:
           periodSeconds: 5
 ```
 
-**IMPORTANTE:** Trocar `seuusuario` pelo seu usuário do Docker Hub!
+**IMPORTANTE:** Trocar `<docker-hub-account>` pelo seu usuário do Docker Hub!
 
 Aplicar:
 
