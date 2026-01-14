@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: <docker-hub-account>/myapp-webapi:4.0
+        image: your-docker-hub-account/myapp-webapi:4.0
         ports:
         - containerPort: 8080
           name: http
@@ -97,7 +97,10 @@ spec:
     spec:
       containers:
       - name: webapp
-        image: <docker-hub-account>/myapp-webapp:1.0
+        image: your-docker-hub-account/myapp-webapp:2.0
+        env:
+        - name: ApiSettings__WebApiUrl
+          value: "http://myapp-webapi-service.webinar5.svc.cluster.local"
         ports:
         - containerPort: 8080
           name: http
@@ -154,6 +157,3 @@ spec:
             name: myapp-webapi-service
             port:
               number: 80
-
-
-
