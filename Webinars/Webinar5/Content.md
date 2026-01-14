@@ -36,6 +36,20 @@ Você precisará de uma conta no Docker Hub para fazer push da imagem. Se não t
 
 ✅ **Ingress Controller (será habilitado durante a live)**
 
+**📝 Nota importante para macOS + Docker driver:**
+
+No macOS usando o driver Docker, o IP do Minikube (obtido com `minikube ip`) geralmente não está acessível diretamente do host. Para testar o Ingress sem configurar `/etc/hosts`, você pode usar o túnel automático do Minikube:
+
+```bash
+# Obter URL do Ingress Controller (cria túnel automático)
+INGRESS_URL=$(minikube service -n ingress-nginx ingress-nginx-controller --url)
+
+# Usar nos testes
+curl -H "Host: myapp.local" $INGRESS_URL/api/health
+```
+
+Esta abordagem funciona sem precisar editar `/etc/hosts` e é especialmente útil para testes rápidos.
+
 ---
 
 ## O que vamos aprender
@@ -352,38 +366,50 @@ metadata:
   name: myapp-ingress-path
   namespace: webinar5
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
-  - http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: myapp-webapp-service
-            port:
-              number: 80
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: myapp-webapi-service
-            port:
-              number: 80
+    - http:
+        paths:
+          # Frontend: tudo que NÃO começar com /api
+          - path: /(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: myapp-webapp-service
+                port:
+                  number: 80
+          
+          # Backend: /api/<algo> -> /<algo> no service da API
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: myapp-webapi-service
+                port:
+                  number: 80
 ```
 
 **Explicação dos campos:**
 
 - **ingressClassName**: Define qual controller usar (`nginx`)
+- **annotations**:
+  - `use-regex: "true"` = Habilita suporte a expressões regulares nos paths
+  - `rewrite-target: /$2` = Usa o segundo grupo de captura da regex para reescrever o path
 - **rules**: Lista de regras de roteamento
 - **http.paths**: Caminhos e backends
-- **path**: URL path para match (`/`, `/api`)
-- **pathType**: `Prefix` = casa com tudo que começa com esse path
+- **path**: URL path com regex
+  - `/(.*)` = Captura qualquer path (grupo 1 e 2)
+  - `/api(/|$)(.*)` = Captura `/api/` ou `/api` seguido de qualquer coisa (grupo 2)
+- **pathType**: `ImplementationSpecific` = Permite regex (específico do NGINX)
 - **backend.service**: Service de destino e porta
-- **annotations**: Configurações específicas do NGINX
-  - `rewrite-target: /` = reescreve `/api/produtos` para `/produtos` no backend
+
+**Como funciona o rewrite:**
+- Requisição: `http://example.com/api/products`
+- Regex match: `/api(/|$)(.*)` captura `/` (grupo 1) e `products` (grupo 2)
+- Rewrite: `/$2` = `/products` (envia para o backend sem o prefixo `/api`)
 
 **Aplicar:**
 
@@ -432,6 +458,23 @@ curl http://${MINIKUBE_IP}/api/instance
 # API products
 curl http://${MINIKUBE_IP}/api/products
 ```
+
+**📝 Nota para macOS + Docker driver:**
+
+No macOS com Docker driver, o IP do Minikube pode não estar acessível diretamente. Neste caso, use o serviço do Ingress Controller:
+
+```bash
+# Obter URL do Ingress Controller
+minikube service -n ingress-nginx ingress-nginx-controller --url
+
+# Testar endpoints
+curl -i $INGRESS_URL/
+curl -i $INGRESS_URL/api/health
+curl -i $INGRESS_URL/api/instance
+curl -i $INGRESS_URL/api/products
+```
+
+Isso cria um túnel automático para o Ingress Controller, permitindo acessar os serviços sem configurar /etc/hosts.
 
 🎉 **Funcionou! Roteamento por path!**
 
@@ -539,6 +582,21 @@ curl http://api.myapp.local/instance
 curl http://api.myapp.local/products
 ```
 
+**📝 Nota para macOS + Docker driver:**
+
+Se você não configurou /etc/hosts ou o IP não está acessível, use o túnel do Ingress Controller com header Host:
+
+```bash
+# Obter URL do Ingress Controller
+INGRESS_URL=$(minikube service -n ingress-nginx ingress-nginx-controller --url)
+
+# Testar com Host header
+curl -H "Host: myapp.local" $INGRESS_URL/
+curl -H "Host: api.myapp.local" $INGRESS_URL/health
+curl -H "Host: api.myapp.local" $INGRESS_URL/instance
+curl -H "Host: api.myapp.local" $INGRESS_URL/products
+```
+
 **Navegador:**
 
 - http://myapp.local
@@ -613,6 +671,21 @@ curl http://myapp.local/api/instance
 curl http://myapp.local/api/products
 ```
 
+**📝 Nota para macOS + Docker driver:**
+
+Se você não configurou /etc/hosts ou prefere usar o túnel automático:
+
+```bash
+# Obter URL do Ingress Controller
+INGRESS_URL=$(minikube service -n ingress-nginx ingress-nginx-controller --url)
+
+# Testar com Host header
+curl -H "Host: myapp.local" $INGRESS_URL/
+curl -H "Host: myapp.local" $INGRESS_URL/api/health
+curl -H "Host: myapp.local" $INGRESS_URL/api/instance
+curl -H "Host: myapp.local" $INGRESS_URL/api/products
+```
+
 🎉 **Arquitetura production-ready!**
 
 ---
@@ -681,6 +754,23 @@ echo -e "${BLUE}========================================${NC}"
 chmod +x test-ingress.sh
 ./test-ingress.sh
 ```
+
+**📝 Nota para macOS + Docker driver:**
+
+Se o script test-ingress.sh não funcionar (porque o IP do Minikube não está acessível), você pode testar diretamente com o túnel do Ingress Controller:
+
+```bash
+# Obter URL do Ingress Controller
+INGRESS_URL=$(minikube service -n ingress-nginx ingress-nginx-controller --url)
+
+# Testar manualmente
+curl -H "Host: myapp.local" -i $INGRESS_URL/
+curl -H "Host: myapp.local" -i $INGRESS_URL/api/health
+curl -H "Host: myapp.local" -i $INGRESS_URL/api/instance
+curl -H "Host: myapp.local" -i $INGRESS_URL/api/products
+```
+
+Ou modifique o script `test-ingress.sh` para usar `$INGRESS_URL` em vez de `${MINIKUBE_IP}`.
 
 ---
 

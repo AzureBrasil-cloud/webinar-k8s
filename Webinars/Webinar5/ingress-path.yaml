@@ -4,23 +4,28 @@ metadata:
   name: myapp-ingress-path
   namespace: webinar5
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
-  - http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: myapp-webapp-service
-            port:
-              number: 80
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: myapp-webapi-service
-            port:
-              number: 80
+    - http:
+        paths:
+          # Frontend: tudo que NÃO começar com /api
+          - path: /(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: myapp-webapp-service
+                port:
+                  number: 80
+          
+          # Backend: /api/<algo> -> /<algo> no service da API
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: myapp-webapi-service
+                port:
+                  number: 80
+
