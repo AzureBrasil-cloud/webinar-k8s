@@ -805,38 +805,24 @@ spec:
         tier: frontend
     spec:
       containers:
-      - name: webapp
-        image: <docker-hub-account>/myapp-webapp:1.0
-        ports:
-        - containerPort: 8080
-          name: http
-        env:
-        - name: ApiSettings__WebApiUrl
-          value: "http://myapp-webapi-service.webinar4.svc.cluster.local"
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "50m"
-          limits:
-            memory: "128Mi"
-            cpu: "100m"
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 8080
-          initialDelaySeconds: 10
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 8080
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        - name: web
+          image: <docker-hub-account>/myapp-webapp:1.0
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "25m"
+            limits:
+              memory: "64Mi"
+              cpu: "50m"
+
 ```
 
 **Observações importantes:**
 
-- **Nome**: `myapp-webapp` (em vez de `myapp-web`)
+- **Nome**: `myapp-webapp`
 - **Porta**: 8080 (aplicação ASP.NET Core)
 - **Env var**: `ApiSettings__WebApiUrl` configura a URL da API (override do appsettings.json)
 - **Probes**: Health checks na rota raiz `/`
@@ -844,7 +830,7 @@ spec:
 Aplicar:
 
 ```bash
-kubectl apply -f deployment-web.yaml
+kubectl apply -f deployment-webapp.yaml
 ```
 
 Verificar:
