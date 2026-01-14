@@ -782,7 +782,7 @@ docker run -p 8080:8080 -e ApiSettings__WebApiUrl=http://localhost:5000 $DOCKER_
 
 Vamos criar o Deployment para o MyApp.WebApp:
 
-### deployment-web.yaml
+### deployment-webapp.yaml
 
 ```yaml
 apiVersion: apps/v1
@@ -808,7 +808,7 @@ spec:
         - name: web
           image: <docker-hub-account>/myapp-webapp:1.0
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               name: http
           resources:
             requests:
@@ -1037,7 +1037,7 @@ spec:
     spec:
       containers:
       - name: webapp
-        image: tallesvaliatti/myapp-webapp:1.0
+        image: <docker-hub-account>/myapp-webapp:1.0
         ports:
         - containerPort: 8080
           name: http

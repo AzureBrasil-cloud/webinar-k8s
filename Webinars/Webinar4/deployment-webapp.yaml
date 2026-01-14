@@ -19,9 +19,9 @@ spec:
     spec:
       containers:
       - name: web
-        image: tallesvaliatti/myapp-webapp:1.0
+        image: <docker-hub-account>/myapp-webapp:1.0
         ports:
-        - containerPort: 80
+        - containerPort: 8080
           name: http
         resources:
           requests:
