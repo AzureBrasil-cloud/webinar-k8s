@@ -293,13 +293,13 @@ Agora você precisa construir e fazer push da nova versão:
 cd Webinars/Webinar5/Apps/MyApp.WebApi
 
 # Build da imagem v4.0
-docker build -t <docker-hub-account>/myapp-webapi:4.0 .
+docker build -t your-docker-hub-account/myapp-webapi:4.0 .
 
 # Login no Docker Hub (se ainda não fez)
 docker login
 
 # Push para Docker Hub
-docker push <docker-hub-account>/myapp-webapi:4.0
+docker push your-docker-hub-account/myapp-webapi:4.0
 ```
 
 **Exemplo real:**
@@ -436,7 +436,11 @@ spec:
     spec:
       containers:
       - name: webapp
-        image: <docker-hub-account>/myapp-webapp:1.0
+        image: your-docker-hub-account/myapp-webapp:1.0
+        # Variável já presente no manifesto: WebApp consome internamente a API do cluster
+        env:
+        - name: ApiSettings__WebApiUrl
+          value: "http://myapp-webapi-service.webinar5.svc.cluster.local"
         ports:
         - containerPort: 8080
           name: http
@@ -479,13 +483,7 @@ kubectl apply -f deployment-webapp.yaml
 kubectl apply -f service-webapp-clusterip.yaml
 ```
 
-**Verificar:**
-
-```bash
-kubectl get all -n webinar5
-```
-
-✅ Agora temos pods e services rodando, mas **sem acesso externo** (ainda).
+**Nota:** O arquivo `deployment-webapp.yaml` já contém desde o início a variável de ambiente `ApiSettings__WebApiUrl` apontando para `http://myapp-webapi-service.webinar5.svc.cluster.local`. Não é necessário adicioná-la manualmente durante a live.
 
 ---
 
@@ -836,7 +834,7 @@ curl http://api.myapp.local:65113/products
 
 Escolha os comandos de acordo com a opção que você configurou acima.
 
-#### Se usou **Opção 1** (IP direto - porta 80):
+#### Se usou **Opção 1** (IP direto):
 
 **Terminal:**
 
@@ -860,7 +858,7 @@ curl http://api.myapp.local/products
 
 **Terminal:**
 
-Substitua `65113` pela porta que o `minikube service --url` retornou:
+Substitua `65113` pela porta que o túnel retornou:
 
 ```bash
 # WebApp
@@ -1034,7 +1032,7 @@ Anote a porta retornada (ex: `65113`).
 
 Escolha os comandos de acordo com a opção que você configurou.
 
-#### **Se usou Opção 1** (IP direto - porta 80):
+#### **Se usou Opção 1** (IP direto):
 
 **Terminal:**
 
@@ -1093,226 +1091,8 @@ Se preferir testar sem configurar `/etc/hosts`, use o header `Host`:
 INGRESS_URL=$(minikube service -n ingress-nginx ingress-nginx-controller --url)
 
 curl -H "Host: myapp.local" $INGRESS_URL/
-curl -H "Host: myapp.local" $INGRESS_URL/api/health
-curl -H "Host: myapp.local" $INGRESS_URL/api/instance
-curl -H "Host: myapp.local" $INGRESS_URL/api/products
+curl -H "Host: api.myapp.local" $INGRESS_URL/health
 ```
-
----
-
-### 7.2.1) Configurar WebApp para comunicar com a API
-
-Por padrão, o WebApp não sabe onde encontrar a API. Precisamos configurar a URL da API através de uma **variável de ambiente** no Kubernetes.
-
-**Passo 1:** Adicionar variável de ambiente no `deployment-webapp.yaml`
-
-Edite o `deployment-webapp.yaml` e adicione a seção `env` no container:
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: myapp-webapp
-  namespace: webinar5
-  labels:
-    app: myapp-webapp
-    tier: frontend
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: myapp-webapp
-  template:
-    metadata:
-      labels:
-        app: myapp-webapp
-        tier: frontend
-    spec:
-      containers:
-      - name: webapp
-        image: <docker-hub-account>/myapp-webapp:1.0
-        ports:
-        - containerPort: 8080
-          name: http
-        # ⬇️ ADICIONE ESTA SEÇÃO DE VARIÁVEIS DE AMBIENTE
-        env:
-        - name: ApiSettings__WebApiUrl
-          value: "http://myapp.local/api"  # Opção 1: IP do Minikube (sem porta)
-          # value: "http://myapp.local:65113/api"  # Opção 2: Com túnel (porta dinâmica)
-        # ⬆️ FIM DA SEÇÃO
-        resources:
-          requests:
-            memory: "32Mi"
-            cpu: "25m"
-          limits:
-            memory: "64Mi"
-            cpu: "50m"
-```
-
-**⚠️ Importante - Escolha a URL correta:**
-
-**Opção 1:** Se você usa **IP do Minikube diretamente** (Linux/Windows ou Hypervisor VM):
-```yaml
-env:
-- name: ApiSettings__WebApiUrl
-  value: "http://myapp.local/api"  # Sem porta (usa porta 80)
-```
-
-**Opção 2:** Se você usa **túnel do Minikube** (macOS + Docker driver):
-```yaml
-env:
-- name: ApiSettings__WebApiUrl
-  value: "http://myapp.local:65113/api"  # COM porta dinâmica do túnel
-```
-
-**💡 Nota sobre a porta:**
-- **Com túnel**: A porta é **dinâmica** e pode variar (ex: 65113, 50056, etc). Anote a porta que o comando `minikube service -n ingress-nginx ingress-nginx-controller` retornou.
-- **Sem túnel**: Não precisa de porta (usa a porta 80 padrão do HTTP).
-
-**📝 Como funciona:**
-
-No ASP.NET Core, a configuração `appsettings.json`:
-```json
-{
-  "ApiSettings": {
-    "WebApiUrl": "http://myapp-webapi-service.webinar4.svc.cluster.local"
-  }
-}
-```
-
-Pode ser sobrescrita por **variáveis de ambiente** usando `__` (double underscore) como separador:
-- `ApiSettings__WebApiUrl` → `ApiSettings:WebApiUrl`
-
-Veja no `Program.cs` do WebApp:
-```csharp
-builder.Services.AddHttpClient("WebApi", client =>
-{
-    var apiUrl = builder.Configuration["ApiSettings:WebApiUrl"] ?? "http://localhost:5000";
-    client.BaseAddress = new Uri(apiUrl);
-    client.Timeout = TimeSpan.FromSeconds(30);
-});
-```
-
-**Passo 2:** Reaplicar o deployment
-
-Após editar o `deployment-webapp.yaml`, aplique as mudanças:
-
-```bash
-# Reaplicar o deployment
-kubectl apply -f deployment-webapp.yaml
-
-# Verificar se os pods foram reiniciados
-kubectl get pods -n webinar5 -l app=myapp-webapp
-
-# Ver os logs para confirmar (substitua o pod name)
-kubectl logs -n webinar5 <pod-name>
-```
-
-**Passo 3:** Testar a comunicação
-
-Agora o WebApp deve conseguir se comunicar com a API através do Ingress!
-
-Acesse no navegador:
-- **Opção 1** (sem porta): http://myapp.local/
-- **Opção 2** (com porta): http://myapp.local:65113/
-
-O WebApp deve conseguir buscar dados da API através do endpoint `/api`.
-
-**🎉 Arquitetura completa funcionando!**
-
-```
-Navegador → http://myapp.local/
-    ↓
-Ingress (myapp.local + path /)
-    ↓
-WebApp Service
-    ↓
-WebApp Pod
-    ↓ (faz requisição HTTP interna)
-WebApp → http://myapp.local/api/products
-    ↓
-Ingress (myapp.local + path /api)
-    ↓
-WebAPI Service
-    ↓
-WebAPI Pod → retorna JSON
-    ↓
-WebApp renderiza HTML
-    ↓
-Navegador exibe página
-```
-
----
-
-### 7.3) Entendendo o roteamento combinado
-
-Esta arquitetura é **production-ready** porque:
-
-1. **Um único domínio** (`myapp.local`) - Mais fácil de gerenciar
-2. **Roteamento por path** - Frontend na raiz, API em `/api`
-3. **UsePathBase na aplicação** - A API conhece seu próprio path base
-4. **Ingress simples** - Sem regex, sem rewrite, apenas prefix matching
-5. **Separação de responsabilidades** - Cada componente cuida do seu roteamento
-
-**Fluxo de uma requisição com UsePathBase:**
-
-```
-Cliente: http://myapp.local/api/products
-    ↓
-Ingress Controller (NGINX)
-    ↓
-Ingress Rule: host=myapp.local, path=/api (Prefix)
-    ↓
-Encaminha para: myapp-webapi-service
-    ↓
-Service: myapp-webapi-service:80
-    ↓
-Pod: myapp-webapi (porta 8080)
-    ↓
-API recebe: GET /api/products
-    ↓
-UsePathBase("/api") reconhece o path base
-    ↓
-Endpoint /products é executado
-```
-
-**Por que UsePathBase é melhor:**
-
-✅ **Aplicação consciente do path**: A API sabe que está em `/api`
-- Gera links corretos (ex: OpenAPI, HATEOAS)
-- Funciona em qualquer ambiente (local, Docker, K8s)
-- Não depende de configuração externa
-
-✅ **Ingress mais simples**: Sem regex, sem rewrite
-- Mais fácil de entender
-- Menos propenso a erros
-- Melhor performance (sem regex matching)
-
-✅ **Separação de responsabilidades**:
-- Frontend não sabe que API está em `/api`
-- API é responsável pelo seu próprio path
-- Ingress apenas roteia, não transforma
-
-✅ **Portabilidade**:
-- Funciona localmente: `http://localhost:8080/api/products`
-- Funciona no Docker: `http://container:8080/api/products`
-- Funciona no Kubernetes: `http://service/api/products`
-- Funciona atrás do Ingress: `http://myapp.local/api/products`
-
-**Comparação: Sem UsePathBase vs Com UsePathBase**
-
-| Aspecto | SEM UsePathBase (v3.0) | COM UsePathBase (v4.0) |
-|---------|------------------------|------------------------|
-| **Ingress path** | `/api(/\|$)(.*)` | `/api` |
-| **Ingress annotations** | `rewrite-target: /$2` | Nenhuma |
-| **API recebe** | `/products` | `/api/products` |
-| **Responsabilidade** | Ingress transforma | API conhece seu path |
-| **Complexidade** | Alta (regex) | Baixa (prefix) |
-| **Geração de links** | Quebrado | ✅ Correto |
-| **Portabilidade** | Limitada | ✅ Total |
-| **Melhor prática** | ❌ Não | ✅ Sim |
-
-🎉 **Arquitetura production-ready com UsePathBase!**
 
 ---
 
@@ -1490,6 +1270,10 @@ spec:
       containers:
       - name: webapp
         image: <docker-hub-account>/myapp-webapp:1.0
+        # Variável já presente no manifesto: WebApp consome internamente a API do cluster
+        env:
+        - name: ApiSettings__WebApiUrl
+          value: "http://myapp-webapi-service.webinar5.svc.cluster.local"
         ports:
         - containerPort: 8080
           name: http
