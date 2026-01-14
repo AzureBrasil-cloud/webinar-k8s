@@ -29,7 +29,7 @@ public class HomeController(IHttpClientFactory httpClientFactory, ILogger<HomeCo
         try
         {
             var httpClient = httpClientFactory.CreateClient("WebApi");
-            var response = await httpClient.GetAsync("instance");
+            var response = await httpClient.GetAsync("api/instance");
 
             if (response.IsSuccessStatusCode)
             {
@@ -67,7 +67,7 @@ public class HomeController(IHttpClientFactory httpClientFactory, ILogger<HomeCo
         try
         {
             var httpClient = httpClientFactory.CreateClient("WebApi");
-            var response = await httpClient.GetAsync("products");
+            var response = await httpClient.GetAsync("api/products");
 
             if (response.IsSuccessStatusCode)
             {

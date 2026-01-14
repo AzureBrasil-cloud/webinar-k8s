@@ -331,6 +331,64 @@ paths:
 
 ---
 
+## 3.1) Preparando o WebApp v2.0
+
+Nesta seção vamos preparar uma nova versão do *WebApp* (**v2.0**) que assume que a API já está servindo seus endpoints com o prefixo `/api` (como na API v4.0 com `UsePathBase("/api")`). Na prática, isso significa que todas as chamadas HTTP do frontend/server-side do WebApp precisam incluir o segmento `api/` no início dos caminhos.
+
+O que mudamos no código do WebApp (exemplos):
+
+- Antes (v1.x) — chamando endpoints na raiz da API:
+  - var response = await httpClient.GetAsync("products");
+  - var response = await httpClient.GetAsync("instance");
+
+- Agora (v2.0) — incluindo o prefixo `/api` nas chamadas:
+  - var response = await httpClient.GetAsync("api/products");
+  - var response = await httpClient.GetAsync("api/instance");
+
+Observação: se o `HttpClient` estiver configurado com um `BaseAddress` apontando para `http://myapp-webapi-service.webinar5.svc.cluster.local/`, então usar `GetAsync("api/products")` resulta na requisição final `http://myapp-webapi-service.webinar5.svc.cluster.local/api/products`.
+
+Exemplo mínimo (trecho típico do controller):
+
+```csharp
+var httpClient = httpClientFactory.CreateClient("WebApi");
+var response = await httpClient.GetAsync("api/products");
+// ...
+var response2 = await httpClient.GetAsync("api/instance");
+```
+
+Atualizações necessárias no manifesto do WebApp:
+
+- Atualizar a imagem do `Deployment` do WebApp para a nova tag `:2.0` (ex.: `your-docker-hub-account/myapp-webapp:2.0`).
+- Garantir que a variável de ambiente `ApiSettings__WebApiUrl` aponte para o service interno do cluster (no manifesto atual já existe `http://myapp-webapi-service.webinar5.svc.cluster.local`, portanto não é necessário adicioná-la manualmente).
+
+No repositório, atualize e publique a imagem do WebApp v2.0:
+
+```bash
+cd Webinars/Webinar5/Apps/MyApp.WebApp
+# Build da imagem v2.0
+docker build -t your-docker-hub-account/myapp-webapp:2.0 .
+# Push para o Docker Hub
+docker push your-docker-hub-account/myapp-webapp:2.0
+```
+
+Alteração no `deployment-webapp.yaml` (exemplo):
+
+```yaml
+# ...deployment manifest...
+        image: your-docker-hub-account/myapp-webapp:2.0
+        env:
+        - name: ApiSettings__WebApiUrl
+          value: "http://myapp-webapi-service.webinar5.svc.cluster.local"
+# ...restante...
+```
+
+Notas adicionais:
+
+- Não é preciso mudar o `Ingress` para rewrites quando a API usa `UsePathBase("/api")` — o Ingress pode encaminhar o path completo.
+- Se você já atualizou o código do WebApp localmente (por exemplo, alterando `GetAsync("products")` para `GetAsync("api/products")`), basta buildar e publicar a imagem `:2.0` e aplicar o `deployment-webapp.yaml` atualizado no cluster.
+
+---
+
 ## 4) Deployments e Services (ClusterIP apenas!)
 
 Agora vamos usar **apenas ClusterIP** para os Services, pois o Ingress Controller fará o acesso externo.
@@ -363,7 +421,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: <docker-hub-account>/myapp-webapi:4.0
+        image: your-docker-hub-account/myapp-webapi:4.0
         ports:
         - containerPort: 8080
           name: http
@@ -1202,7 +1260,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: <docker-hub-account>/myapp-webapi:4.0
+        image: your-docker-hub-account/myapp-webapi:4.0
         ports:
         - containerPort: 8080
           name: http
@@ -1269,7 +1327,7 @@ spec:
     spec:
       containers:
       - name: webapp
-        image: <docker-hub-account>/myapp-webapp:1.0
+        image: your-docker-hub-account/myapp-webapp:1.0
         # Variável já presente no manifesto: WebApp consome internamente a API do cluster
         env:
         - name: ApiSettings__WebApiUrl

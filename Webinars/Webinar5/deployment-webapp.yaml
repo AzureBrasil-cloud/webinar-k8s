@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: webapp
-        image: your-docker-hub-account/myapp-webapp:1.0
+        image: your-docker-hub-account/myapp-webapp:2.0
         env:
         - name: ApiSettings__WebApiUrl
           value: "http://myapp-webapi-service.webinar5.svc.cluster.local"
