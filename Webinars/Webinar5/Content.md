@@ -1083,7 +1083,6 @@ curl http://myapp.local:65113/api/products
 **O que observar:**
 - ✅ `/` vai para o WebApp
 - ✅ `/api/*` vai para a API
-- ✅ O path `/api` é **removido** antes de chegar no backend (rewrite)
 - ⚠️ Precisa incluir a porta na URL
 
 **💡 Alternativa com curl (sem /etc/hosts):**
@@ -1097,6 +1096,150 @@ curl -H "Host: myapp.local" $INGRESS_URL/
 curl -H "Host: myapp.local" $INGRESS_URL/api/health
 curl -H "Host: myapp.local" $INGRESS_URL/api/instance
 curl -H "Host: myapp.local" $INGRESS_URL/api/products
+```
+
+---
+
+### 7.2.1) Configurar WebApp para comunicar com a API
+
+Por padrão, o WebApp não sabe onde encontrar a API. Precisamos configurar a URL da API através de uma **variável de ambiente** no Kubernetes.
+
+**Passo 1:** Adicionar variável de ambiente no `deployment-webapp.yaml`
+
+Edite o `deployment-webapp.yaml` e adicione a seção `env` no container:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-webapp
+  namespace: webinar5
+  labels:
+    app: myapp-webapp
+    tier: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: myapp-webapp
+  template:
+    metadata:
+      labels:
+        app: myapp-webapp
+        tier: frontend
+    spec:
+      containers:
+      - name: webapp
+        image: <docker-hub-account>/myapp-webapp:1.0
+        ports:
+        - containerPort: 8080
+          name: http
+        # ⬇️ ADICIONE ESTA SEÇÃO DE VARIÁVEIS DE AMBIENTE
+        env:
+        - name: ApiSettings__WebApiUrl
+          value: "http://myapp.local/api"  # Opção 1: IP do Minikube (sem porta)
+          # value: "http://myapp.local:65113/api"  # Opção 2: Com túnel (porta dinâmica)
+        # ⬆️ FIM DA SEÇÃO
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "25m"
+          limits:
+            memory: "64Mi"
+            cpu: "50m"
+```
+
+**⚠️ Importante - Escolha a URL correta:**
+
+**Opção 1:** Se você usa **IP do Minikube diretamente** (Linux/Windows ou Hypervisor VM):
+```yaml
+env:
+- name: ApiSettings__WebApiUrl
+  value: "http://myapp.local/api"  # Sem porta (usa porta 80)
+```
+
+**Opção 2:** Se você usa **túnel do Minikube** (macOS + Docker driver):
+```yaml
+env:
+- name: ApiSettings__WebApiUrl
+  value: "http://myapp.local:65113/api"  # COM porta dinâmica do túnel
+```
+
+**💡 Nota sobre a porta:**
+- **Com túnel**: A porta é **dinâmica** e pode variar (ex: 65113, 50056, etc). Anote a porta que o comando `minikube service -n ingress-nginx ingress-nginx-controller` retornou.
+- **Sem túnel**: Não precisa de porta (usa a porta 80 padrão do HTTP).
+
+**📝 Como funciona:**
+
+No ASP.NET Core, a configuração `appsettings.json`:
+```json
+{
+  "ApiSettings": {
+    "WebApiUrl": "http://myapp-webapi-service.webinar4.svc.cluster.local"
+  }
+}
+```
+
+Pode ser sobrescrita por **variáveis de ambiente** usando `__` (double underscore) como separador:
+- `ApiSettings__WebApiUrl` → `ApiSettings:WebApiUrl`
+
+Veja no `Program.cs` do WebApp:
+```csharp
+builder.Services.AddHttpClient("WebApi", client =>
+{
+    var apiUrl = builder.Configuration["ApiSettings:WebApiUrl"] ?? "http://localhost:5000";
+    client.BaseAddress = new Uri(apiUrl);
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+```
+
+**Passo 2:** Reaplicar o deployment
+
+Após editar o `deployment-webapp.yaml`, aplique as mudanças:
+
+```bash
+# Reaplicar o deployment
+kubectl apply -f deployment-webapp.yaml
+
+# Verificar se os pods foram reiniciados
+kubectl get pods -n webinar5 -l app=myapp-webapp
+
+# Ver os logs para confirmar (substitua o pod name)
+kubectl logs -n webinar5 <pod-name>
+```
+
+**Passo 3:** Testar a comunicação
+
+Agora o WebApp deve conseguir se comunicar com a API através do Ingress!
+
+Acesse no navegador:
+- **Opção 1** (sem porta): http://myapp.local/
+- **Opção 2** (com porta): http://myapp.local:65113/
+
+O WebApp deve conseguir buscar dados da API através do endpoint `/api`.
+
+**🎉 Arquitetura completa funcionando!**
+
+```
+Navegador → http://myapp.local/
+    ↓
+Ingress (myapp.local + path /)
+    ↓
+WebApp Service
+    ↓
+WebApp Pod
+    ↓ (faz requisição HTTP interna)
+WebApp → http://myapp.local/api/products
+    ↓
+Ingress (myapp.local + path /api)
+    ↓
+WebAPI Service
+    ↓
+WebAPI Pod → retorna JSON
+    ↓
+WebApp renderiza HTML
+    ↓
+Navegador exibe página
 ```
 
 ---
