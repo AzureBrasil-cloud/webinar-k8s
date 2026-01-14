@@ -36,20 +36,6 @@ Você precisará de uma conta no Docker Hub para fazer push da imagem. Se não t
 
 ✅ **Ingress Controller (será habilitado durante a live)**
 
-**📝 Nota importante para macOS + Docker driver:**
-
-No macOS usando o driver Docker, o IP do Minikube (obtido com `minikube ip`) geralmente não está acessível diretamente do host. Para testar o Ingress sem configurar `/etc/hosts`, você pode usar o túnel automático do Minikube:
-
-```bash
-# Obter URL do Ingress Controller (cria túnel automático)
-INGRESS_URL=$(minikube service -n ingress-nginx ingress-nginx-controller --url)
-
-# Usar nos testes
-curl -H "Host: myapp.local" $INGRESS_URL/api/health
-```
-
-Esta abordagem funciona sem precisar editar `/etc/hosts` e é especialmente útil para testes rápidos.
-
 ---
 
 ## O que vamos aprender
@@ -308,27 +294,6 @@ docker push your-docker-hub-account/myapp-webapi:4.0
 docker build -t tallesvaliatti/myapp-webapi:4.0 .
 docker push tallesvaliatti/myapp-webapi:4.0
 ```
-
-### Diferenças no Ingress
-
-**Com v3.0 (SEM UsePathBase):**
-```yaml
-annotations:
-  nginx.ingress.kubernetes.io/rewrite-target: /$2  # Reescreve /api/products -> /products
-paths:
-  - path: /api(/|$)(.*)  # Regex complexa
-```
-
-**Com v4.0 (COM UsePathBase):**
-```yaml
-# Sem annotations de rewrite!
-paths:
-  - path: /api  # Path simples
-    pathType: Prefix
-```
-
-✅ **Mais simples e mais correto!**
-
 ---
 
 ## 3.1) Preparando o WebApp v2.0
@@ -356,11 +321,6 @@ var response = await httpClient.GetAsync("api/products");
 var response2 = await httpClient.GetAsync("api/instance");
 ```
 
-Atualizações necessárias no manifesto do WebApp:
-
-- Atualizar a imagem do `Deployment` do WebApp para a nova tag `:2.0` (ex.: `your-docker-hub-account/myapp-webapp:2.0`).
-- Garantir que a variável de ambiente `ApiSettings__WebApiUrl` aponte para o service interno do cluster (no manifesto atual já existe `http://myapp-webapi-service.webinar5.svc.cluster.local`, portanto não é necessário adicioná-la manualmente).
-
 No repositório, atualize e publique a imagem do WebApp v2.0:
 
 ```bash
@@ -370,23 +330,6 @@ docker build -t your-docker-hub-account/myapp-webapp:2.0 .
 # Push para o Docker Hub
 docker push your-docker-hub-account/myapp-webapp:2.0
 ```
-
-Alteração no `deployment-webapp.yaml` (exemplo):
-
-```yaml
-# ...deployment manifest...
-        image: your-docker-hub-account/myapp-webapp:2.0
-        env:
-        - name: ApiSettings__WebApiUrl
-          value: "http://myapp-webapi-service.webinar5.svc.cluster.local"
-# ...restante...
-```
-
-Notas adicionais:
-
-- Não é preciso mudar o `Ingress` para rewrites quando a API usa `UsePathBase("/api")` — o Ingress pode encaminhar o path completo.
-- Se você já atualizou o código do WebApp localmente (por exemplo, alterando `GetAsync("products")` para `GetAsync("api/products")`), basta buildar e publicar a imagem `:2.0` e aplicar o `deployment-webapp.yaml` atualizado no cluster.
-
 ---
 
 ## 4) Deployments e Services (ClusterIP apenas!)
@@ -494,8 +437,7 @@ spec:
     spec:
       containers:
       - name: webapp
-        image: your-docker-hub-account/myapp-webapp:1.0
-        # Variável já presente no manifesto: WebApp consome internamente a API do cluster
+        image: your-docker-hub-account/myapp-webapp:2.0
         env:
         - name: ApiSettings__WebApiUrl
           value: "http://myapp-webapi-service.webinar5.svc.cluster.local"
