@@ -221,7 +221,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: <docker-hub-account>/myapp-webapi:3.0
+        image: <docker-hub-account>/myapp-webapi:3.0 
         ports:
         - containerPort: 8080
           name: http
@@ -249,7 +249,7 @@ spec:
           periodSeconds: 5
 ```
 
-**IMPORTANTE:** Trocar `<docker-hub-account>` pelo seu usuário do Docker Hub!
+**Nota:** O YAML acima já está configurado com a imagem `tallesvaliatti/myapp-webapi:3.0`. Se você estiver usando seu próprio Docker Hub, substitua `tallesvaliatti` pelo seu usuário.
 
 Aplicar:
 
@@ -365,9 +365,6 @@ nslookup myapp-webapi-service
 # Testar resolução DNS (completo)
 nslookup myapp-webapi-service.webinar4.svc.cluster.local
 
-# Testar conectividade HTTP
-wget -qO- http://myapp-webapi-service
-
 # Testar endpoint /instance várias vezes
 wget -qO- http://myapp-webapi-service/instance
 wget -qO- http://myapp-webapi-service/instance
@@ -396,10 +393,7 @@ kubectl run curl-pod -n webinar4 --image=curlimages/curl --rm -it --restart=Neve
 
 ```sh
 # Testar múltiplas requisições
-for i in {1..10}; do
-  curl -s http://myapp-webapi-service/instance | grep -o '"InstanceId":"[^"]*"'
-  sleep 0.5
-done
+curl -s http://myapp-webapi-service/instance
 ```
 
 Você verá diferentes `InstanceId` - isso prova que o Service está fazendo **load balancing** entre os 3 pods! 🎉
@@ -493,6 +487,64 @@ http://192.168.49.2:30080
 http://192.168.49.2:30080/health
 http://192.168.49.2:30080/instance
 ```
+
+**📝 Nota importante para macOS:**
+
+No macOS, o Minikube usa Docker Desktop e não expõe diretamente o IP do node (192.168.49.2). Em vez disso, o comando `minikube service --url` cria automaticamente um **túnel SSH** e retorna um endereço localhost com porta dinâmica.
+
+**Exemplo no macOS:**
+
+```bash
+minikube service myapp-webapi-nodeport -n webinar4 --url
+```
+
+**Saída no macOS:**
+
+```
+http://127.0.0.1:60000
+```
+
+**Testando com curl:**
+
+```bash
+curl http://127.0.0.1:60000/instance
+```
+
+**Resposta:**
+
+```json
+{
+  "instanceId": "90830915",
+  "hostname": "myapp-webapi-b5f556567-xrwgq",
+  "startupTime": "2026-01-14T14:47:44.3395329Z",
+  "uptime": "00:14:10"
+}
+```
+
+**O que está acontecendo?**
+
+1. **Túnel automático**: O Minikube detecta que você está no macOS e cria um túnel SSH do localhost para o NodePort do cluster
+2. **Porta dinâmica**: A porta (ex: 60000) é alocada dinamicamente e pode mudar a cada execução
+3. **Localhost**: Você acessa via `127.0.0.1` em vez do IP do node
+4. **Load balancing funciona**: Mesmo através do túnel, o Service distribui as requisições entre os pods
+
+**Vantagem**: Funciona de forma transparente sem precisar configurar nada adicional!
+
+**Alternativa (sem túnel)**: Se quiser acessar diretamente o NodePort sem o túnel:
+
+```bash
+# Obter o IP do Minikube
+minikube ip
+
+# Resultado: 192.168.49.2 (ou similar)
+
+# Acessar diretamente (pode não funcionar no macOS com Docker driver)
+curl http://192.168.49.2:30080/instance
+```
+
+**Nota**: No macOS com Docker driver, o IP do Minikube geralmente não é acessível diretamente do host. Use o túnel automático com `minikube service --url` ou `minikube service <nome>` (que abre o navegador automaticamente).
+
+---
 
 ### 8.3) Testar no terminal (script)
 
