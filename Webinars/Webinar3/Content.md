@@ -134,7 +134,7 @@ docker push <seu-docker-hub-account>/myapp-webapi:2.0
 docker images | grep myapp-webapi
 ```
 
-Esperado: ver as versões `1.0` e `2.0`.
+Esperado: ver as versões `1.0`, `1.1` e `2.0`.
 
 ---
 
@@ -339,74 +339,33 @@ kubectl describe service myapp-webapi -n myapp
 Observe a seção **Endpoints** - deve listar os IPs dos 3 pods!
 
 ---
+## 6) Testar load balancing entre réplicas (dentro do cluster)
 
-## 6) Testar load balancing entre réplicas
+### 6.1) Criar um Pod temporário com curl
 
-### 6.1) Port-forward para o Service
-
-```bash
-kubectl port-forward service/myapp-webapi 8080:8080 -n myapp
-```
-
-Mantenha esse terminal aberto.
-
-### 6.2) Testar o endpoint /instance
-
-Em **outro terminal**, faça múltiplas requisições:
+Execute um pod descartável no mesmo namespace e entre nele:
 
 ```bash
-# Fazer 10 requisições e ver diferentes instanceId
-for i in {1..10}; do
-  echo "Requisição $i:"
-  curl -s http://localhost:8080/instance | jq .
-  echo "---"
-  sleep 0.5
-done
+kubectl run curl-tmp -n myapp --rm -it --restart=Never --image=curlimages/curl:8.5.0 -- sh
 ```
 
-**Se não tiver `jq` instalado**, use sem formatação:
+### 6.2) Fazer múltiplas requisições para o Service
 
-```bash
-for i in {1..10}; do
-  echo "Requisição $i:"
-  curl http://localhost:8080/instance
-  echo ""
-  echo "---"
-  sleep 0.5
-done
+Dentro do pod, rode o várias vezes o comando abaixo para ver o load balancing em ação:
+
+```sh
+curl -s http://myapp-webapi:8080/instance
 ```
 
-**Resultado esperado**: você verá diferentes valores de `instanceId` e `hostname`, provando que o Service está distribuindo as requisições entre os 3 pods!
+**Resultado esperado:** o retorno vai alternar valores como `instanceId` e/ou `hostname`, mostrando que o Service está distribuindo as requisições entre as réplicas.
 
-Exemplo de saída:
+### 6.3) Sair
 
-```json
-Requisição 1:
-{
-  "instanceId": "a3f8c2d1",
-  "hostname": "myapp-webapi-5d7f8b9c-x7h2k",
-  "startupTime": "2026-01-13T10:30:15Z",
-  "uptime": "00:05:23"
-}
----
-Requisição 2:
-{
-  "instanceId": "b9e4f7a2",
-  "hostname": "myapp-webapi-5d7f8b9c-m4p9j",
-  "startupTime": "2026-01-13T10:30:17Z",
-  "uptime": "00:05:21"
-}
----
-Requisição 3:
-{
-  "instanceId": "c1d5e8b3",
-  "hostname": "myapp-webapi-5d7f8b9c-n8k5l",
-  "startupTime": "2026-01-13T10:30:16Z",
-  "uptime": "00:05:22"
-}
+Quando terminar:
+
+```sh
+exit
 ```
-
-✅ **Isso demonstra o load balancing do Service!**
 
 ---
 
