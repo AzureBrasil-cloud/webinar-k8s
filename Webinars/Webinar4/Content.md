@@ -157,6 +157,7 @@ docker push tallesvaliatti/myapp-webapi:3.0
 **O que mudou na v3.0:**
 - ✅ Health check endpoint retorna timestamp
 
+Lembre de mudar o valor `tallesvaliatti` para o seu usuário do Docker Hub!
 ---
 
 ## 3) Namespace dedicado
