@@ -115,7 +115,7 @@ ENTRYPOINT ["dotnet", "MyApp.WebApi.dll"]
 Navegue até a pasta `MyApp.WebApi/` e execute:
 
 ```bash
-cd /Users/tallesvaliatti/Projects/webinar-k8s/Apps/MyApp.WebApi
+cd Webinar1/Apps/MyApp.WebApi
 docker build -t myapp-webapi:1.0 .
 ```
 

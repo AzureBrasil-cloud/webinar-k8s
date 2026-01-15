@@ -8,13 +8,7 @@ Objetivo da live: organizar o deploy usando **YAML manifests**, criar um **Names
 
 ## Pré-requisitos
 
-✅ Ter completado a **Live 1**:
-- Docker Desktop instalado e rodando
-- Minikube funcionando
-- kubectl configurado
-- Imagem no Docker Hub: `<docker-hub-account>/myapp-webapi:1.0`
-
-✅ Cluster Minikube ativo:
+Cluster Minikube ativo:
 
 ```bash
 minikube status
