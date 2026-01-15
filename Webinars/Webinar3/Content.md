@@ -395,19 +395,7 @@ kubectl get deployment -n myapp
 
 Esperado: `READY: 5/5`
 
-### 7.4) Testar novamente o load balancing
-
-Mantenha o `port-forward` aberto e execute novamente:
-
-```bash
-for i in {1..15}; do 
-  echo "Requisição $i: $(curl -s http://localhost:8080/instance | jq -r '.instanceId + " | " + .hostname')"
-done
-```
-
-Agora você verá **5 instanceId diferentes** sendo distribuídos!
-
-### 7.5) Escalar para baixo
+### 7.4) Escalar para baixo
 
 ```bash
 kubectl scale deployment myapp-webapi --replicas=2 -n myapp
@@ -421,7 +409,7 @@ kubectl get pods -n myapp
 
 Você verá que 3 pods foram **terminados** e apenas 2 permanecem.
 
-### 7.6) Voltar para 3 réplicas (declarativo)
+### 7.5) Voltar para 3 réplicas (declarativo)
 
 A forma **recomendada** é editar o YAML e aplicar:
 
