@@ -654,7 +654,17 @@ Agora você terá **3 Pods**!
 
 ### 10.2 Alterar a imagem (simulando update de versão)
 
-Se você publicou uma versão `1.1` no Docker Hub, edite:
+Vamos fazer o Build e push da nova versão (1.1) no Docker Hub
+
+No diretório do projeto (onde está o Dockerfile):
+
+# build da imagem nova
+docker build -t <docker-hub-account>/myapp-webapi:1.1 .
+
+# push para o Docker Hub
+docker push <docker-hub-account>/myapp-webapi:1.1
+
+Se você já publicou uma versão `1.1` no Docker Hub, edite:
 
 ```yaml
 spec:
@@ -892,109 +902,3 @@ minikube status
 ```
 
 Esperado: `host: Stopped`
-
-### 16.2 (Opcional) Deletar o cluster completamente
-
-Se quiser remover tudo e começar do zero:
-
-```bash
-minikube delete
-```
-
-**Atenção:** Isso remove o cluster e TODOS os recursos dentro dele permanentemente!
-
-Para criar um novo cluster depois:
-
-```bash
-minikube start --driver=docker
-```
-
-### 16.3 Quando usar cada comando?
-
-**`minikube stop`** - Use ao final do dia/sessão de trabalho
-- ✅ Mantém seus recursos e namespaces
-- ✅ Economiza CPU/memória
-- ✅ Rápido para reiniciar depois
-
-**`minikube delete`** - Use quando:
-- 🔄 Quer resetar tudo
-- 🐛 Teve problemas no cluster
-- 💾 Quer liberar espaço em disco
-
-### 16.4 Reiniciar o cluster na próxima sessão
-
-Na próxima vez que for trabalhar, basta iniciar:
-
-```bash
-minikube start
-```
-
-Não precisa especificar `--driver=docker` novamente, ele lembra da configuração.
-
-Verificar que tudo voltou:
-
-```bash
-kubectl get namespaces
-kubectl get all -n myapp
-```
-
----
-
-## Resultado final (Entregável)
-
-* ✅ Cluster Minikube gerenciado (iniciar/parar)
-* ✅ Namespace `myapp` criado e configurado
-* ✅ Deployment com 2 réplicas rodando
-* ✅ Service ClusterIP expondo os Pods
-* ✅ Labels padronizadas aplicadas em todos os recursos
-* ✅ Manifests YAML versionáveis e reutilizáveis
-* ✅ Conhecimento de selectors e filtros por label
-* ✅ Capacidade de organizar e atualizar recursos declarativamente
-* ✅ Saber como iniciar e parar o cluster de forma segura
-
----
-
-## Comparação: Live 1 vs Live 2
-
-| Aspecto | Live 1 (Imperativo) | Live 2 (Declarativo) |
-|---------|---------------------|----------------------|
-| **Comando** | `kubectl create deployment ...` | `kubectl apply -f deployment.yaml` |
-| **Versionamento** | ❌ Difícil versionar comandos | ✅ YAML no Git |
-| **Reprodutível** | ❌ Precisa recriar comando | ✅ Reaplicar YAML |
-| **Namespace** | default | myapp (isolado) |
-| **Labels** | Apenas `app` (automático) | Labels customizadas |
-| **Réplicas** | 1 (padrão) | 2 (configurado) |
-| **Recursos** | Não definido | CPU/Memory limits |
-| **Organização** | ❌ Recursos misturados | ✅ Namespace dedicado |
-| **Atualização** | Comandos manuais | `kubectl apply` (declarativo) |
-
----
-
-## Quando usar Imperativo vs Declarativo?
-
-### Imperativo (comandos kubectl create/run)
-✅ **Bom para:**
-- Testes rápidos
-- Aprendizado inicial
-- Debug temporário
-- Criar recursos únicos (jobs)
-
-❌ **Ruim para:**
-- Produção
-- Versionamento
-- Trabalho em equipe
-- Reproduzir ambientes
-
-### Declarativo (YAML + kubectl apply)
-✅ **Bom para:**
-- Produção
-- Versionamento no Git
-- Infraestrutura como código (IaC)
-- CI/CD
-- Documentação
-- Trabalho em equipe
-
-❌ **Ruim para:**
-- Testes muito rápidos (mais verboso)
-
-**Recomendação:** Use declarativo (YAML) sempre que possível!
