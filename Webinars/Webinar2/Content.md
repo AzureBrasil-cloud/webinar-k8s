@@ -1,4 +1,4 @@
-# Live 2 — Kubernetes "no básico que importa": YAML, Namespace e Labels
+# Live 2 — YAML, Namespace e Labels
 
 Objetivo da live: organizar o deploy usando **YAML manifests**, criar um **Namespace** dedicado, aplicar **Labels** padronizadas e aprender a **filtrar recursos** com selectors.
 

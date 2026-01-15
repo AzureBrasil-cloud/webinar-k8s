@@ -1,4 +1,4 @@
-# Live 5 — Ingress no Minikube: rota bonita e host
+# Live 5 — Ingress
 
 Objetivo da live: dominar **Ingress** no Kubernetes, aprendendo a **expor aplicações com URLs amigáveis**, **configurar roteamento por path e host**, **habilitar o Ingress Controller** no Minikube e construir uma arquitetura com **roteamento inteligente** (web + api atrás do Ingress).
 

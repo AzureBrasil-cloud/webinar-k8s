@@ -1,4 +1,4 @@
-# Live 4 — Services (ClusterIP/NodePort): conectando tudo
+# Live 4 — Services (ClusterIP/NodePort)
 
 Objetivo da live: dominar **Services** no Kubernetes, aprendendo a **expor aplicações internamente** (ClusterIP), **testar resolução DNS**, **expor temporariamente com NodePort** e construir uma arquitetura **multi-serviço** (web → api).
 

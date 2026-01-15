@@ -1,4 +1,4 @@
-# Live 1 — Setup + primeiro deploy no Minikube (Docker Desktop + .NET Web API)
+# Live 1 — Setup + primeiro deploy no Minikube
 
 Objetivo da live: deixar o ambiente pronto (qualquer OS) e fazer o **primeiro deploy** no Kubernetes local (**Minikube**), publicando a sua **Web API .NET** (container) e acessando via **kubectl port-forward**.
 
