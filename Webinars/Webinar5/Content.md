@@ -1459,44 +1459,7 @@ Pods
 
 ---
 
-## 12) Comparação com Cloud Providers
-
-### Minikube (Local)
-
-```yaml
-spec:
-  ingressClassName: nginx  # NGINX Ingress Controller (addon)
-```
-
-### AWS (EKS)
-
-```yaml
-metadata:
-  annotations:
-    kubernetes.io/ingress.class: alb  # AWS ALB Ingress Controller
-```
-
-### GCP (GKE)
-
-```yaml
-metadata:
-  annotations:
-    kubernetes.io/ingress.class: gce  # GCP Load Balancer
-```
-
-### Azure (AKS)
-
-```yaml
-metadata:
-  annotations:
-    kubernetes.io/ingress.class: azure/application-gateway
-```
-
-**Nota:** Em produção (cloud), o Ingress Controller provisiona automaticamente um **Load Balancer externo** (AWS ELB/ALB, GCP LB, Azure LB).
-
----
-
-## 13) Limpeza
+## 12) Limpeza
 
 ### Deletar recursos específicos
 
