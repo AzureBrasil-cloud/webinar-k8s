@@ -884,10 +884,6 @@ Mas para navegador, é melhor configurar `/etc/hosts` com `127.0.0.1`.
 
 ---
 
-🎉 **Roteamento por host funcionando!**
-
----
-
 ## 7) Combinando Path + Host (Arquitetura Recomendada)
 
 A arquitetura mais comum é **um domínio com paths diferentes**:
