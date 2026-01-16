@@ -157,8 +157,6 @@ kubectl exec -n ingress-nginx deploy/ingress-nginx-controller -- /nginx-ingress-
 
 ## 3) Namespace e aplicações base
 
-Vamos usar as mesmas aplicações da Live 4 (WebAPI e WebApp), mas agora com Ingress!
-
 ### namespace.yaml
 
 ```yaml
