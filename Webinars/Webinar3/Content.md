@@ -100,6 +100,7 @@ Em outro terminal:
 ```bash
 # Testar o novo endpoint
 curl http://localhost:5023/instance
+```
 
 ---
 
@@ -111,7 +112,6 @@ Agora vamos criar a imagem Docker **versão 2.0** que inclui o novo endpoint `/i
 
 ```bash
 cd Webinars/Webinar3/Apps/MyApp.WebApi
-
 docker build -t <seu-docker-hub-account>/myapp-webapi:2.0 .
 ```
 
@@ -575,12 +575,34 @@ kubectl rollout undo deployment/myapp-webapi --to-revision=1 -n myapp
 - Migrações de banco que quebram compatibilidade
 - Desenvolvimento/testes
 
-Para usar Recreate, edite `deployment.yaml`:
+Para usar Recreate, edite `deployment.yaml` e **remova** o bloco `rollingUpdate` — ele não é compatível com `Recreate`:
 
 ```yaml
 spec:
   strategy:
     type: Recreate
+    # ⚠️ NÃO inclua o bloco rollingUpdate aqui!
+    # Se mantiver rollingUpdate junto com type: Recreate, você verá o erro:
+    # The Deployment "myapp-webapi" is invalid:
+    # spec.strategy.rollingUpdate: Forbidden: may not be specified when strategy `type` is 'Recreate'
+```
+
+Depois aplique:
+
+```bash
+kubectl apply -f deployment.yaml
+```
+
+Acompanhe os pods sendo recriados (todos terminados antes de novos subirem):
+
+```bash
+kubectl get pods -n myapp -w
+```
+
+Verifique a nova revisão gerada:
+
+```bash
+kubectl rollout history deployment/myapp-webapi -n myapp
 ```
 
 ---
