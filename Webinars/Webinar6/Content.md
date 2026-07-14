@@ -359,7 +359,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: your-docker-hub-account/myapp-webapi:5.0
+        image: tallesvaliatti/myapp-webapi:5.0
         ports:
         - containerPort: 8080
           name: http
@@ -416,7 +416,7 @@ spec:
     spec:
       containers:
       - name: webapp
-        image: your-docker-hub-account/myapp-webapp:3.0
+        image: tallesvaliatti/myapp-webapp:3.0
         env:
         - name: ApiSettings__WebApiUrl
           valueFrom:
@@ -504,7 +504,7 @@ Esperado: 3 réplicas de `myapp-webapi` e 2 de `myapp-webapp`, todas `Running`.
 
 ## 8) Testando via port-forward
 
-Nesta live, para manter o foco em ConfigMap/Secret, vamos acessar as aplicações com `kubectl port-forward` (sem Ingress).
+Para manter o foco em ConfigMap/Secret, vamos acessar as aplicações com `kubectl port-forward` (sem Ingress).
 
 ### 8.1) WebApp (frontend)
 
@@ -547,7 +547,7 @@ curl -s http://localhost:8080/api/products | jq .
 
 ## 9) Hot-reload via variável de ambiente? Mudando o desconto
 
-Nesta live, injetamos o ConfigMap **como variável de ambiente** (`envFrom`). Nesse formato, o valor é lido apenas na inicialização do processo, então vamos provar que **alterar o ConfigMap não afeta Pods já em execução**.
+Já injetamos o ConfigMap **como variável de ambiente** (`envFrom`). Nesse formato, o valor é lido apenas na inicialização do processo, então vamos provar que **alterar o ConfigMap não afeta Pods já em execução**.
 
 > 💡 Se o ConfigMap fosse montado como **volume** (arquivo), o `kubelet` atualizaria o arquivo automaticamente — mas a aplicação ainda precisaria observar/reler esse arquivo para perceber a mudança. Isso fica para uma live futura.
 
@@ -576,7 +576,7 @@ curl -s http://localhost:8080/api/products | jq '.[0]'
 
 ✅ Agora o desconto aparece como **20%**.
 
-**Lição:** para configuração via variável de ambiente, qualquer mudança em ConfigMap/Secret exige um `rollout restart` (ou um novo deploy) para ser aplicada. Consumir como volume monta um caminho diferente, com outros detalhes e limitações (ex: `subPath` também não atualiza sozinho) — fora do escopo desta live.
+**Lição:** para configuração via variável de ambiente, qualquer mudança em ConfigMap/Secret exige um `rollout restart` (ou um novo deploy) para ser aplicada. Consumir como volume monta um caminho diferente, com outros detalhes e limitações (ex: `subPath` também não atualiza sozinho) — fica para uma live futura.
 
 ---
 
@@ -664,7 +664,7 @@ kubectl get configmap,secret -n webinar6
 
 - **ConfigMap**: configuração não sensível, texto plano, injetada via `envFrom`/`configMapRef`.
 - **Secret**: dados sensíveis, base64 (não criptografado por padrão), injetado via `valueFrom`/`secretKeyRef`.
-- Quando injetados como variável de ambiente (como fizemos nesta live), ConfigMap e Secret **não são hot-reload** — é preciso `kubectl rollout restart` para o Pod pegar o novo valor. Consumidos via volume o comportamento é diferente, mas isso fica para outra live.
+- Quando injetados como variável de ambiente (como fizemos aqui), ConfigMap e Secret **não são hot-reload** — é preciso `kubectl rollout restart` para o Pod pegar o novo valor. Consumidos via volume o comportamento é diferente, mas isso fica para outra live.
 - Config **nullable** no .NET (`decimal?`) permite comportamento padrão seguro (0% de desconto) quando a chave não existe.
 - O `MyApp.WebApp` não precisou de nenhuma mudança de código para passar a receber a URL da API via Secret — só o `MyApp.WebApi` ganhou lógica nova (o cálculo do desconto).
 

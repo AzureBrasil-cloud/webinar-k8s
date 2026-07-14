@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: <docker-hub-account>/myapp-webapi:5.0
+        image: tallesvaliatti/myapp-webapi:5.0
         ports:
         - containerPort: 8080
           name: http

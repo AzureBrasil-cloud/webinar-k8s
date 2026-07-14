@@ -53,7 +53,7 @@ spec:
     spec:
       containers:
       - name: webapi
-        image: your-docker-hub-account/myapp-webapi:5.0
+        image: tallesvaliatti/myapp-webapi:5.0
         ports:
         - containerPort: 8080
           name: http
@@ -123,7 +123,7 @@ spec:
     spec:
       containers:
       - name: webapp
-        image: your-docker-hub-account/myapp-webapp:3.0
+        image: tallesvaliatti/myapp-webapp:3.0
         env:
         - name: ApiSettings__WebApiUrl
           valueFrom:
