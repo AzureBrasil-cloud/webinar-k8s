@@ -224,6 +224,11 @@ docker build -t tallesvaliatti/myapp-webapi:5.0 .
 docker push tallesvaliatti/myapp-webapi:5.0
 ```
 
+```bash
+docker build -t tallesvaliatti/myapp-webapp:3.0 .
+docker push tallesvaliatti/myapp-webapp:3.0
+```
+
 ---
 
 ## 4) Namespace
