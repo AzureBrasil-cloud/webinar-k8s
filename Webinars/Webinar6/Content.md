@@ -32,8 +32,57 @@ Esperado: 1 node com status `Ready`.
 
 ✅ **`jq` instalado** (opcional, só para formatar a saída JSON dos testes):
 
+✅ **macOS**
+
 ```bash
 brew install jq
+```
+
+✅ **Linux**
+
+Ubuntu / Debian:
+
+```bash
+sudo apt update
+sudo apt install -y jq
+```
+
+Fedora / RHEL:
+
+```bash
+sudo dnf install -y jq
+```
+
+Arch Linux:
+
+```bash
+sudo pacman -S jq
+```
+
+✅ **Windows**
+
+Com Winget:
+
+```powershell
+winget install jqlang.jq
+```
+
+Com Chocolatey:
+
+```powershell
+choco install jq
+```
+
+Com Scoop:
+
+```powershell
+scoop install jq
+```
+
+Para validar a instalação:
+
+```bash
+jq --version
 ```
 
 ---
