@@ -6,6 +6,9 @@
 # dotenv files
 .env
 
+# user sandbox files
+*.sandbox.md
+
 # User-specific files
 *.rsuser
 *.suo
