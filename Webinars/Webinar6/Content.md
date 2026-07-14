@@ -1,6 +1,6 @@
 # Live 6 — ConfigMaps e Secrets
 
-Objetivo da live: entender **como configurar aplicações "do jeito certo"** no Kubernetes, sem hardcode e sem rebuild de imagem, usando **ConfigMap** (configuração não-sensível) e **Secret** (dados sensíveis). Vamos aplicar isso em um cenário real: um **desconto configurável** na API e a **URL da API** injetada via Secret no WebApp.
+Objetivo da live: entender **como configurar aplicações "do jeito certo"** no Kubernetes, sem hardcode e sem rebuild de imagem, usando **ConfigMap** (configuração não sensível) e **Secret** (dados sensíveis). Vamos aplicar isso em um cenário real: um **desconto configurável** na API e a **URL da API** injetada via Secret no WebApp.
 
 **Entregável:** `MyApp.WebApi` aplicando um desconto fixo (%) vindo de um ConfigMap (nullable — sem o valor, desconto é 0%), e `MyApp.WebApp` recebendo a URL da API via Secret, sem alterar o código-fonte.
 
@@ -89,11 +89,11 @@ jq --version
 
 ## O que vamos aprender
 
-1. **ConfigMap** - configuração não-sensível, desacoplada da imagem
+1. **ConfigMap** - configuração não sensível, desacoplada da imagem
 2. **Secret** - dados sensíveis, codificados em base64 (não criptografados por padrão!)
 3. **Injeção via variável de ambiente** - `envFrom` / `configMapRef` e `valueFrom` / `secretKeyRef`
 4. **Nullable config** - comportamento padrão quando a chave não existe
-5. **ConfigMap/Secret não é hot-reload** - por que é preciso reiniciar os Pods
+5. **ConfigMap/Secret não são hot-reload** - por que é preciso reiniciar os Pods
 6. **Boas práticas** - o que colocar em ConfigMap vs Secret
 
 ---
@@ -102,7 +102,7 @@ jq --version
 
 | Característica | ConfigMap | Secret |
 |---|---|---|
-| **Uso** | Configuração não-sensível (URLs, flags, percentuais) | Dados sensíveis (senhas, tokens, connection strings) |
+| **Uso** | Configuração não sensível (URLs, flags, percentuais) | Dados sensíveis (senhas, tokens, connection strings) |
 | **Armazenamento** | Texto plano no etcd | Base64 no etcd (⚠️ **não é criptografia**, é apenas encoding) |
 | **Exibição via `kubectl get -o yaml`** | Valor visível | Valor visível em base64 (fácil de decodificar) |
 | **Injeção** | Env var, volume (arquivo) | Env var, volume (arquivo) |
@@ -146,12 +146,12 @@ record ProductWithDiscount(int Id, string Name, string Description, decimal Orig
 
 **Pontos-chave:**
 - `GetValue<decimal?>(...)` retorna `null` se a chave não existir → `?? 0m` garante 0% de desconto por padrão.
-- O response agora traz `OriginalPrice`, `DiscountPercentage` e `FinalPrice`, deixando visível o efeito do ConfigMap.
+- A resposta agora traz `OriginalPrice`, `DiscountPercentage` e `FinalPrice`, deixando visível o efeito do ConfigMap.
 - ⚠️ Esse valor é lido **uma única vez, na inicialização do processo**. Mudar o ConfigMap **não** atualiza o Pod em execução — é necessário reiniciar o Pod (veremos isso na seção 6).
 
 ### 2.2) MyApp.WebApp — URL da API via Secret
 
-O `MyApp.WebApp` **já** lia a URL da API via `IConfiguration`, desde a Webinar 5:
+O `MyApp.WebApp` **já** lia a URL da API via `IConfiguration`, desde o Webinar 5:
 
 ```csharp
 builder.Services.AddHttpClient("WebApi", client =>
@@ -626,7 +626,7 @@ kubectl apply -f all-in-one.yaml
 | URLs de serviços internos não sensíveis | Certificados TLS |
 | Nomes de ambiente (`Production`, `Staging`) | Chaves de criptografia |
 
-**Regra prática:** se o valor vazando em um log ou em um `kubectl describe` causaria um incidente de segurança, ele pertence a um Secret (e, idealmente, a um cofre externo como Azure Key Vault).
+**Regra prática:** se o vazamento do valor em um log ou em um `kubectl describe` causaria um incidente de segurança, ele pertence a um Secret (e, idealmente, a um cofre externo como Azure Key Vault).
 
 ---
 
@@ -655,7 +655,7 @@ kubectl get configmap,secret -n webinar6
 
 ## Recapitulando
 
-- **ConfigMap**: configuração não-sensível, texto plano, injetada via `envFrom`/`configMapRef`.
+- **ConfigMap**: configuração não sensível, texto plano, injetada via `envFrom`/`configMapRef`.
 - **Secret**: dados sensíveis, base64 (não criptografado por padrão), injetado via `valueFrom`/`secretKeyRef`.
 - Ambos, quando injetados como variável de ambiente, **não são hot-reload** — é preciso `kubectl rollout restart` para o Pod pegar o novo valor.
 - Config **nullable** no .NET (`decimal?`) permite comportamento padrão seguro (0% de desconto) quando a chave não existe.
