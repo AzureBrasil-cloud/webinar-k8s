@@ -93,7 +93,7 @@ jq --version
 2. **Secret** - dados sensíveis, codificados em base64 (não criptografados por padrão!)
 3. **Injeção via variável de ambiente** - `envFrom` / `configMapRef` e `valueFrom` / `secretKeyRef`
 4. **Nullable config** - comportamento padrão quando a chave não existe
-5. **ConfigMap/Secret não são hot-reload** - por que é preciso reiniciar os Pods
+5. **Hot-reload depende de como você consome o ConfigMap/Secret** - via variável de ambiente, é preciso reiniciar os Pods
 6. **Boas práticas** - o que colocar em ConfigMap vs Secret
 
 ---
@@ -106,7 +106,7 @@ jq --version
 | **Armazenamento** | Texto plano no etcd | Base64 no etcd (⚠️ **não é criptografia**, é apenas encoding) |
 | **Exibição via `kubectl get -o yaml`** | Valor visível | Valor visível em base64 (fácil de decodificar) |
 | **Injeção** | Env var, volume (arquivo) | Env var, volume (arquivo) |
-| **Auto-reload no Pod** | ❌ Não (quando injetado via env var) | ❌ Não (mesma limitação) |
+| **Auto-reload no Pod** | Depende de como é consumido: via variável de ambiente ❌ não atualiza sozinho; via volume montado, o arquivo é atualizado, mas a aplicação precisa reler/observar | Mesmo comportamento do ConfigMap |
 
 ⚠️ **Importante:** Secret **não é** criptografia. É só uma convenção/organização para dados sensíveis, com controles de acesso (RBAC) e integrações (ex: Azure Key Vault, Sealed Secrets) que fazem sentido *apenas* para esse tipo de recurso. Em produção, combine com RBAC e, se possível, criptografia em repouso no cluster (encryption at rest do etcd) ou um cofre externo.
 
@@ -540,9 +540,11 @@ curl -s http://localhost:8080/api/products | jq .
 
 ---
 
-## 9) ConfigMap não é hot-reload — mudando o desconto
+## 9) Hot-reload via variável de ambiente? Mudando o desconto
 
-Vamos provar que **alterar o ConfigMap não afeta Pods já em execução** enquanto o valor for injetado via variável de ambiente.
+Nesta live, injetamos o ConfigMap **como variável de ambiente** (`envFrom`). Nesse formato, o valor é lido apenas na inicialização do processo, então vamos provar que **alterar o ConfigMap não afeta Pods já em execução**.
+
+> 💡 Se o ConfigMap fosse montado como **volume** (arquivo), o `kubelet` atualizaria o arquivo automaticamente — mas a aplicação ainda precisaria observar/reler esse arquivo para perceber a mudança. Isso fica para uma live futura.
 
 ### 9.1) Atualizar o desconto para 20%
 
@@ -569,7 +571,7 @@ curl -s http://localhost:8080/api/products | jq '.[0]'
 
 ✅ Agora o desconto aparece como **20%**.
 
-**Lição:** para configuração via variável de ambiente, qualquer mudança em ConfigMap/Secret exige um `rollout restart` (ou um novo deploy) para ser aplicada. Se você precisar de hot-reload de verdade, a alternativa é montar o ConfigMap como **volume** (arquivo) e o app observar mudanças no arquivo — fora do escopo desta live.
+**Lição:** para configuração via variável de ambiente, qualquer mudança em ConfigMap/Secret exige um `rollout restart` (ou um novo deploy) para ser aplicada. Consumir como volume monta um caminho diferente, com outros detalhes e limitações (ex: `subPath` também não atualiza sozinho) — fora do escopo desta live.
 
 ---
 
@@ -657,7 +659,7 @@ kubectl get configmap,secret -n webinar6
 
 - **ConfigMap**: configuração não sensível, texto plano, injetada via `envFrom`/`configMapRef`.
 - **Secret**: dados sensíveis, base64 (não criptografado por padrão), injetado via `valueFrom`/`secretKeyRef`.
-- Ambos, quando injetados como variável de ambiente, **não são hot-reload** — é preciso `kubectl rollout restart` para o Pod pegar o novo valor.
+- Quando injetados como variável de ambiente (como fizemos nesta live), ConfigMap e Secret **não são hot-reload** — é preciso `kubectl rollout restart` para o Pod pegar o novo valor. Consumidos via volume o comportamento é diferente, mas isso fica para outra live.
 - Config **nullable** no .NET (`decimal?`) permite comportamento padrão seguro (0% de desconto) quando a chave não existe.
 - O `MyApp.WebApp` não precisou de nenhuma mudança de código para passar a receber a URL da API via Secret — só o `MyApp.WebApi` ganhou lógica nova (o cálculo do desconto).
 
