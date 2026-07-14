@@ -570,6 +570,12 @@ kubectl rollout restart deployment/myapp-webapi -n webinar6
 kubectl rollout status deployment/myapp-webapi -n webinar6
 ```
 
+⚠️ **Importante:** `kubectl port-forward` fica preso ao Pod que existia quando o comando foi iniciado. Como o `rollout restart` substitui os Pods, o túnel antigo cai — refaça o port-forward antes de testar novamente:
+
+```bash
+kubectl port-forward svc/myapp-webapi-service 8080:80 -n webinar6
+```
+
 ```bash
 curl -s http://localhost:8080/api/products | jq '.[0]'
 ```
@@ -586,6 +592,12 @@ curl -s http://localhost:8080/api/products | jq '.[0]'
 kubectl patch configmap myapp-webapi-config -n webinar6 --type json -p '[{"op":"remove","path":"/data/Discount__Percentage"}]'
 kubectl rollout restart deployment/myapp-webapi -n webinar6
 kubectl rollout status deployment/myapp-webapi -n webinar6
+```
+
+O port-forward caiu de novo com o restart — refaça-o antes de testar:
+
+```bash
+kubectl port-forward svc/myapp-webapi-service 8080:80 -n webinar6
 ```
 
 ```bash
